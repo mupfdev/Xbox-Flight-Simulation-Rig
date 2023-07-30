@@ -14,7 +14,8 @@
 #define SEG_CLR 0x00000000
 #define SEG_HDG 0x003d5e76
 #define SEG_NAV 0x003e7737
-#define SEG_OFF 0x0071713f
+#define SEG_OFF 0x00000000
+#define SEG_PFT 0x00787173
 #define SEG_ROL 0x00383f33
 #define SEG_VS  0x00006d3e
 
@@ -29,6 +30,7 @@
 #define DIGIT_8 0x7f
 #define DIGIT_9 0x6f
 
+void fill_display(void);
 void set_display(uint32_t state, int32_t altitude);
 
 #endif /* INC_DISPLAY_H_ */

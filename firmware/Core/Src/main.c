@@ -66,6 +66,7 @@ typedef enum
 
 /* USER CODE BEGIN PV */
 static uint8_t  hid_report[8]      = { 0 };
+static bool     is_initialised     = false;
 static fcu_mode mode               = 0;
 static int32_t  altitude           = 0;
 static int32_t  heading_queue      = 0;
@@ -80,7 +81,8 @@ static GPIO_PinState prev_rot_2_dt = GPIO_PIN_RESET;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
-void handle_encoder();
+void bat_alt_avionics_bootup(void);
+void handle_encoder(void);
 void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key);
 /* USER CODE END PFP */
 
@@ -134,8 +136,6 @@ int main(void)
     handle_key(SL4_GPIO_Port, SL4_Pin, FCU_KEY_NAV);
     handle_key(SL5_GPIO_Port, SL5_Pin, FCU_KEY_ALT);
     handle_key(SL6_GPIO_Port, SL6_Pin, FCU_KEY_DOWN);
-
-    HAL_Delay(10);
   }
   /* USER CODE END 3 */
 }
@@ -231,7 +231,36 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void handle_encoder()
+void bat_alt_avionics_bootup(void)
+{
+  extern USBD_HandleTypeDef hUsbDeviceFS;
+
+  hid_report[2] = KEY_B;
+  hid_report[3] = KEY_A;
+
+  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+  HAL_Delay(40);
+
+  /* Release keys. */
+  for (int i = 0; i < 8; i += 1)
+  {
+    hid_report[i] = KEY_NONE;
+  }
+  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+
+  for (int c = 1; c <= 4; c+= 1)
+  {
+    set_display(SEG_PFT, c);
+    HAL_Delay(2000);
+  }
+  HAL_Delay(2000);
+
+  fill_display();
+  HAL_Delay(4000);
+  set_display(SEG_OFF, 0);
+}
+
+void handle_encoder(void)
 {
   extern USBD_HandleTypeDef hUsbDeviceFS;
   GPIO_PinState rot_1_dt = HAL_GPIO_ReadPin(ROT_1_DT_GPIO_Port, ROT_1_DT_Pin);
@@ -281,7 +310,7 @@ void handle_encoder()
     /* Release keys. */
     for (int i = 0; i < 8; i += 1)
     {
-      hid_report[i] = 0x00;
+      hid_report[i] = KEY_NONE;
     }
     USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
 
@@ -325,7 +354,7 @@ void handle_encoder()
     /* Release keys. */
     for (int i = 0; i < 8; i += 1)
     {
-      hid_report[i] = 0x00;
+      hid_report[i] = KEY_NONE;
     }
     USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
   }
@@ -337,7 +366,7 @@ void handle_encoder()
 void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
 {
   extern USBD_HandleTypeDef hUsbDeviceFS;
-  static fcu_key key_lock = 0;
+  static fcu_key key_lock    = 0;
 
   if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(GPIOx, GPIO_Pin))
   {
@@ -348,22 +377,30 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
         case FCU_KEY_AP:
           hid_report[2] = KEY_TAB;
 
+          if (false == is_initialised)
+          {
+            bat_alt_avionics_bootup();
+            is_initialised = true;
+            return;
+          }
+
           mode ^= 1UL << MODE_AP;
 
-          if (1 == ((mode >> MODE_AP) & 1U))
+          if (0 == ((mode >> MODE_AP) & 1U))
           {
-            if (1 == ((mode >> MODE_LATERAL) & 1U))
-            {
-              disp_state = SEG_HDG;
-            }
-            else
-            {
-              disp_state = SEG_ROL;
-            }
+            disp_state = SEG_OFF;
+          }
+          else if (1 == ((mode >> MODE_NAV) & 1U))
+          {
+            disp_state = SEG_NAV;
+          }
+          else if (1 == ((mode >> MODE_LATERAL) & 1U))
+          {
+            disp_state = SEG_HDG;
           }
           else
           {
-            disp_state = SEG_OFF;
+            disp_state = SEG_ROL;
           }
           break;
         case FCU_KEY_HDG:
@@ -375,6 +412,10 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           if (0 == ((mode >> MODE_AP) & 1U))
           {
             disp_state = SEG_OFF;
+          }
+          else if (1 == ((mode >> MODE_NAV) & 1U))
+          {
+            disp_state = SEG_NAV;
           }
           else if (1 == ((mode >> MODE_LATERAL) & 1U))
           {
@@ -391,13 +432,23 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
         case FCU_KEY_NAV:
           hid_report[2] = KEY_N;
 
-          if (1 == ((mode >> MODE_AP) & 1U))
+          mode ^= 1UL << MODE_NAV;
+
+          if (0 == ((mode >> MODE_AP) & 1U))
+          {
+            disp_state = SEG_OFF;
+          }
+          else if (1 == ((mode >> MODE_NAV) & 1U))
           {
             disp_state = SEG_NAV;
           }
+          else if (1 == ((mode >> MODE_LATERAL) & 1U))
+          {
+            disp_state = SEG_HDG;
+          }
           else
           {
-            disp_state = SEG_OFF;
+            disp_state = SEG_ROL;
           }
           break;
         case FCU_KEY_ALT:
@@ -434,7 +485,7 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
         /* Release keys. */
         for (int i = 0; i < 8; i += 1)
         {
-          hid_report[i] = 0x00;
+          hid_report[i] = KEY_NONE;
         }
         USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
       }
@@ -447,7 +498,7 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
     key_lock &= ~(1UL << key);
   }
 
-  if (disp_state != prev_disp_state)
+  if ((disp_state != prev_disp_state) && (true == is_initialised))
   {
     set_display(disp_state, altitude);
     prev_disp_state = disp_state;

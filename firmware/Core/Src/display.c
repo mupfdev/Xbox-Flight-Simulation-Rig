@@ -15,6 +15,12 @@
 static tm1637_t hdisp_1;
 static tm1637_t hdisp_2;
 
+void fill_display(void)
+{
+  tm1637_fill(&hdisp_1, true);
+  tm1637_fill(&hdisp_2, true);
+}
+
 void set_display(uint32_t state, int32_t altitude)
 {
   static bool is_initialised = false;
