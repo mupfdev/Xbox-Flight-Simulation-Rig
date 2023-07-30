@@ -269,14 +269,6 @@ void handle_encoder(void)
 
   int32_t heading_step = 1;
 
-  if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(ROT_1_SW_GPIO_Port, ROT_1_SW_Pin))
-  {
-    if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(ROT_2_SW_GPIO_Port, ROT_2_SW_Pin))
-    {
-      HAL_NVIC_SystemReset();
-    }
-  }
-
   /* Rotary Encoder 1 - ALTITUDE */
   if ((GPIO_PIN_SET == prev_rot_1_dt) && (GPIO_PIN_RESET == rot_1_dt))
   {

@@ -15,6 +15,12 @@
 static tm1637_t hdisp_1;
 static tm1637_t hdisp_2;
 
+void clear_display(void)
+{
+  tm1637_fill(&hdisp_1, false);
+  tm1637_fill(&hdisp_2, false);
+}
+
 void fill_display(void)
 {
   tm1637_fill(&hdisp_1, true);

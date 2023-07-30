@@ -30,6 +30,7 @@
 #define DIGIT_8 0x7f
 #define DIGIT_9 0x6f
 
+void clear_display(void);
 void fill_display(void);
 void set_display(uint32_t state, int32_t altitude);
 
