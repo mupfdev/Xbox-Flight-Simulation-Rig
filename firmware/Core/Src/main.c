@@ -136,6 +136,7 @@ int main(void)
     handle_key(SL4_GPIO_Port, SL4_Pin, FCU_KEY_NAV);
     handle_key(SL5_GPIO_Port, SL5_Pin, FCU_KEY_ALT);
     handle_key(SL6_GPIO_Port, SL6_Pin, FCU_KEY_DOWN);
+    HAL_Delay(10);
   }
   /* USER CODE END 3 */
 }
@@ -366,7 +367,7 @@ void handle_encoder(void)
 void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
 {
   extern USBD_HandleTypeDef hUsbDeviceFS;
-  static fcu_key key_lock    = 0;
+  static fcu_key key_lock = 0;
 
   if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(GPIOx, GPIO_Pin))
   {
