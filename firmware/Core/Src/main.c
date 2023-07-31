@@ -236,6 +236,7 @@ void bat_alt_avionics_bootup(void)
 {
   extern USBD_HandleTypeDef hUsbDeviceFS;
 
+  hid_report[0] = KEY_MOD_LALT;
   hid_report[2] = KEY_B;
   hid_report[3] = KEY_A;
 
@@ -332,12 +333,12 @@ void handle_encoder(void)
   {
     if (heading_queue < 0)
     {
-      hid_report[2] = KEY_COMMA;
+      hid_report[2] = KEY_RIGHTBRACE;
       heading_queue += 1;
     }
     else if (heading_queue > 0)
     {
-      hid_report[2] = KEY_DOT;
+      hid_report[2] = KEY_LEFTBRACE;
       heading_queue -= 1;
     }
 
@@ -420,10 +421,12 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           }
           break;
         case FCU_KEY_UP:
+          hid_report[0] = KEY_MOD_LALT;
           hid_report[2] = KEY_I;
           break;
         case FCU_KEY_NAV:
-          hid_report[2] = KEY_N;
+          hid_report[0] = KEY_MOD_LCTRL;
+          hid_report[2] = KEY_Z;
 
           mode ^= 1UL << MODE_NAV;
 
@@ -445,6 +448,7 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           }
           break;
         case FCU_KEY_ALT:
+          hid_report[0] = KEY_MOD_LSHIFT;
           hid_report[2] = KEY_X;
 
           mode ^= 1UL << MODE_VERTICAL;
@@ -466,6 +470,7 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           }
           break;
         case FCU_KEY_DOWN:
+          hid_report[0] = KEY_MOD_LALT;
           hid_report[2] = KEY_K;
           break;
       }
