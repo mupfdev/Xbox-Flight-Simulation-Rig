@@ -88,6 +88,8 @@ void Error_Handler(void);
 #define ROT_1_CLK_GPIO_Port GPIOA
 #define ROT_1_DT_Pin GPIO_PIN_9
 #define ROT_1_DT_GPIO_Port GPIOA
+#define MASTER_BAT_ALT_Pin GPIO_PIN_10
+#define MASTER_BAT_ALT_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 /* USER CODE END Private defines */

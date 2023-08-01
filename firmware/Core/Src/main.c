@@ -97,6 +97,7 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+  GPIO_PinState master_bat_alt;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -118,12 +119,25 @@ int main(void)
   MX_GPIO_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+  master_bat_alt = HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin);
   prev_rot_1_dt  = HAL_GPIO_ReadPin(ROT_1_DT_GPIO_Port, ROT_1_DT_Pin);
   prev_rot_2_dt  = HAL_GPIO_ReadPin(ROT_2_DT_GPIO_Port, ROT_2_DT_Pin);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  while (false == is_initialised)
+  {
+    if (master_bat_alt != HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin))
+    {
+      bat_alt_avionics_bootup();
+      is_initialised = true;
+      continue;
+    }
+
+    HAL_Delay(10);
+  }
+
   while (1)
   {
     /* USER CODE END WHILE */
@@ -226,6 +240,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : MASTER_BAT_ALT_Pin */
+  GPIO_InitStruct.Pin = MASTER_BAT_ALT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(MASTER_BAT_ALT_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -362,6 +382,11 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
   extern USBD_HandleTypeDef hUsbDeviceFS;
   static fcu_key key_lock = 0;
 
+  if (false == is_initialised)
+  {
+    return;
+  }
+
   if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(GPIOx, GPIO_Pin))
   {
     if (0 == ((key_lock >> key) & 1U))
@@ -370,13 +395,6 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
       {
         case FCU_KEY_AP:
           hid_report[2] = KEY_TAB;
-
-          if (false == is_initialised)
-          {
-            bat_alt_avionics_bootup();
-            is_initialised = true;
-            return;
-          }
 
           mode ^= 1UL << MODE_AP;
 
