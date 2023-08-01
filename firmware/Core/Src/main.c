@@ -353,12 +353,12 @@ void handle_encoder(void)
   {
     if (heading_queue < 0)
     {
-      hid_report[2] = KEY_RIGHTBRACE;
+      hid_report[2] = KEY_LEFTBRACE;
       heading_queue += 1;
     }
     else if (heading_queue > 0)
     {
-      hid_report[2] = KEY_LEFTBRACE;
+      hid_report[2] = KEY_RIGHTBRACE;
       heading_queue -= 1;
     }
 
