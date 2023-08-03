@@ -1,6 +1,6 @@
 # HID-FCU
 
-[![](media/prototype-tn.jpg)](media/prototype.jpg?raw=true "Prototype")
+[![](media/hid-fcu-prototype-01-tn.jpg)](media/hid-fcu-prototype-01.jpg?raw=true "HID-FCU Prototype 1")
 
 ## About
 
@@ -9,6 +9,8 @@ Simulator based on the [Bendix/King KAP
 140](https://www.bendixking.com/content/dam/bendixking/en/documents/document-lists/downloads-and-manuals/006-18034-0000-KAP-140-Pilots-Guide.pdf)
 autopilot system used in many aircraft such as the Pilatus PC-6
 Turbo-Porter.
+
+[![](media/hid-fcu-prototype-02-tn.jpg)](media/hid-fcu-prototype-02.jpg?raw=true "HID-FCU Prototype 2")
 
 Since the unit, as already implied by the title, is detected as a Human
 Interface Device (HID), it can be used both on the PC and on the Xbox.
