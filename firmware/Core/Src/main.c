@@ -66,14 +66,15 @@ typedef enum
 
 /* USER CODE BEGIN PV */
 static uint8_t  hid_report[8]      = { 0 };
-static bool     is_initialised     = false;
 static fcu_mode mode               = 0;
 static int32_t  altitude           = 0;
 static int32_t  heading_queue      = 0;
 static uint32_t disp_state         = SEG_OFF;
 static uint32_t prev_disp_state    = SEG_CLR;
+static bool is_initialised         = false;
 static GPIO_PinState prev_rot_1_dt = GPIO_PIN_RESET;
 static GPIO_PinState prev_rot_2_dt = GPIO_PIN_RESET;
+static GPIO_PinState master_bat_alt;
 
 /* USER CODE END PV */
 
@@ -84,6 +85,7 @@ static void MX_GPIO_Init(void);
 void bat_alt_avionics_bootup(void);
 void handle_encoder(void);
 void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key);
+void handle_switch(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -97,7 +99,6 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  GPIO_PinState master_bat_alt;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -132,6 +133,7 @@ int main(void)
     {
       bat_alt_avionics_bootup();
       is_initialised = true;
+      master_bat_alt = HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin);
       continue;
     }
 
@@ -143,6 +145,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    handle_switch();
     handle_encoder();
     handle_key(SL1_GPIO_Port, SL1_Pin, FCU_KEY_AP);
     handle_key(SL2_GPIO_Port, SL2_Pin, FCU_KEY_HDG);
@@ -382,11 +385,6 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
   extern USBD_HandleTypeDef hUsbDeviceFS;
   static fcu_key key_lock = 0;
 
-  if (false == is_initialised)
-  {
-    return;
-  }
-
   if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(GPIOx, GPIO_Pin))
   {
     if (0 == ((key_lock >> key) & 1U))
@@ -420,6 +418,7 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           hid_report[2] = KEY_Z;
 
           mode ^= 1UL << MODE_LATERAL;
+          mode |= 1UL << MODE_AP; /* Pilatus PC-6 (Milviz) */
 
           if (0 == ((mode >> MODE_AP) & 1U))
           {
@@ -470,6 +469,7 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           hid_report[2] = KEY_X;
 
           mode ^= 1UL << MODE_VERTICAL;
+          mode |= 1UL << MODE_AP; /* Pilatus PC-6 (Milviz) */
 
           if (1 == ((mode >> MODE_AP) & 1U))
           {
@@ -518,6 +518,29 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
   {
     set_display(disp_state, altitude);
     prev_disp_state = disp_state;
+  }
+}
+
+void handle_switch(void)
+{
+  extern USBD_HandleTypeDef hUsbDeviceFS;
+
+  if (master_bat_alt != HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin))
+  {
+    hid_report[0] = KEY_MOD_LALT;
+    hid_report[2] = KEY_ENTER;
+
+    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+    HAL_Delay(40);
+
+    /* Release keys. */
+    for (int i = 0; i < 8; i += 1)
+    {
+      hid_report[i] = KEY_NONE;
+    }
+    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+
+    master_bat_alt = HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin);
   }
 }
 /* USER CODE END 4 */
