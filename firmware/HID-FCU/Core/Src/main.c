@@ -537,7 +537,7 @@ void set_next_state(void)
     case STATE_STARTER_ON:
       hid_report[0] = KEY_MOD_LALT;
       hid_report[2] = KEY_Q;
-      hid_report[3] = KEY_W; /* This is needed to flip the ignition switch in the next state. */
+      hid_report[3] = KEY_W; /* Hack: This is needed to flip the ignition switch in the next state. */
       break;
     case STATE_IGNITION_ON:
       hid_report[0] = KEY_MOD_LALT;
