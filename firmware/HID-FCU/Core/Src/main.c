@@ -50,6 +50,19 @@ typedef enum
   MODE_VERTICAL, /* 0 = VS,  1 = ALT */
 
 } fcu_mode;
+
+typedef enum
+{
+  STATE_COLD_DARK,
+  STATE_BAT_AVIONICS_ON,
+  STATE_STARTER_ON,
+  STATE_IGNITION_ON,
+  STATE_GENERATOR_ON,
+  STATE_IGNITION_OFF,
+  STATE_STARTER_OFF,
+  STATE_DONE
+
+} fcu_state;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -65,13 +78,14 @@ typedef enum
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-static uint8_t  hid_report[8]      = { 0 };
-static fcu_mode mode               = 0;
-static int32_t  altitude           = 0;
-static int32_t  heading_queue      = 0;
-static uint32_t disp_state         = SEG_OFF;
-static uint32_t prev_disp_state    = SEG_CLR;
-static bool is_initialised         = false;
+static uint8_t       hid_report[8]      = { 0 };
+static fcu_mode      mode               = 0;
+static fcu_state     state              = STATE_COLD_DARK;
+static int32_t       altitude           = 0;
+static int32_t       heading_queue      = 0;
+static uint32_t      disp_state         = SEG_OFF;
+static uint32_t      prev_disp_state    = SEG_CLR;
+static bool          is_initialised         = false;
 static GPIO_PinState prev_rot_1_dt = GPIO_PIN_RESET;
 static GPIO_PinState prev_rot_2_dt = GPIO_PIN_RESET;
 static GPIO_PinState master_bat_alt;
@@ -82,10 +96,10 @@ static GPIO_PinState master_bat_alt;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
-void bat_alt_avionics_bootup(void);
 void handle_encoder(void);
 void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key);
 void handle_switch(void);
+void set_next_state(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -131,7 +145,7 @@ int main(void)
   {
     if (master_bat_alt != HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin))
     {
-      bat_alt_avionics_bootup();
+      set_next_state();
       is_initialised = true;
       master_bat_alt = HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin);
       continue;
@@ -255,36 +269,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void bat_alt_avionics_bootup(void)
-{
-  extern USBD_HandleTypeDef hUsbDeviceFS;
-
-  hid_report[0] = KEY_MOD_LALT;
-  hid_report[2] = KEY_B;
-  hid_report[3] = KEY_A;
-
-  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-  HAL_Delay(40);
-
-  /* Release keys. */
-  for (int i = 0; i < 8; i += 1)
-  {
-    hid_report[i] = KEY_NONE;
-  }
-  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-
-  for (int c = 1; c <= 4; c+= 1)
-  {
-    set_display(SEG_PFT, c);
-    HAL_Delay(2000);
-  }
-  HAL_Delay(2000);
-
-  fill_display();
-  HAL_Delay(4000);
-  set_display(SEG_OFF, 0);
-}
-
 void handle_encoder(void)
 {
   extern USBD_HandleTypeDef hUsbDeviceFS;
@@ -527,20 +511,74 @@ void handle_switch(void)
 
   if (master_bat_alt != HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin))
   {
-    hid_report[0] = KEY_MOD_LALT;
-    hid_report[2] = KEY_ENTER;
-
-    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-    HAL_Delay(40);
-
-    /* Release keys. */
-    for (int i = 0; i < 8; i += 1)
-    {
-      hid_report[i] = KEY_NONE;
-    }
-    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-
+    set_next_state();
     master_bat_alt = HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin);
+  }
+}
+
+void set_next_state(void)
+{
+  extern USBD_HandleTypeDef hUsbDeviceFS;
+
+  state = state + 1;
+
+  switch (state)
+  {
+    default:
+    case STATE_COLD_DARK:
+    case STATE_DONE:
+      state = STATE_DONE;
+      return;
+    case STATE_BAT_AVIONICS_ON:
+      hid_report[0] = KEY_MOD_LALT;
+      hid_report[2] = KEY_B;
+      hid_report[3] = KEY_A;
+      break;
+    case STATE_STARTER_ON:
+      hid_report[0] = KEY_MOD_LALT;
+      hid_report[2] = KEY_Q;
+      hid_report[3] = KEY_W; /* This is needed to flip the ignition switch in the next state. */
+      break;
+    case STATE_IGNITION_ON:
+      hid_report[0] = KEY_MOD_LALT;
+      hid_report[2] = KEY_W;
+      break;
+    case STATE_GENERATOR_ON:
+      hid_report[0] = KEY_MOD_LALT;
+      hid_report[2] = KEY_N;
+      break;
+    case STATE_IGNITION_OFF:
+      hid_report[0] = KEY_MOD_LALT;
+      hid_report[2] = KEY_W;
+      break;
+    case STATE_STARTER_OFF:
+      hid_report[0] = KEY_MOD_LALT;
+      hid_report[2] = KEY_Q;
+      break;
+  }
+
+  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+  HAL_Delay(40);
+
+  /* Release keys. */
+  for (int i = 0; i < 8; i += 1)
+  {
+    hid_report[i] = KEY_NONE;
+  }
+  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+
+  if (STATE_BAT_AVIONICS_ON == state)
+  {
+    for (int c = 1; c <= 4; c+= 1)
+    {
+      set_display(SEG_PFT, c);
+      HAL_Delay(2000);
+    }
+    HAL_Delay(2000);
+
+    fill_display();
+    HAL_Delay(4000);
+    set_display(SEG_OFF, 0);
   }
 }
 /* USER CODE END 4 */
