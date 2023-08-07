@@ -3,10 +3,10 @@
 ## About
 
 In this repository you will find all the source code for my low-cost
-flight simulation rig project based on an Xbox Series S compiled. For a
-detailed article, please visit my blog: [How to build a low-cost flight
+flight simulation rig project based on an Xbox Series S. For a detailed
+article, please visit my blog: [How to build a low-cost flight
 simulation
-rig](https://mupf.dev/xbox-how-to-build-a-low-cost-flight-simulation-rig.html)
+rig](https://mupf.dev/xbox-how-to-build-a-low-cost-flight-simulation-rig.html).
 
 ## Licence
 
