@@ -67,7 +67,6 @@ typedef enum
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -82,7 +81,6 @@ static uint8_t       hid_report[8]      = { 0 };
 static fcu_mode      mode               = 0;
 static fcu_state     state              = STATE_COLD_DARK;
 static int32_t       altitude           = 0;
-static int32_t       heading_queue      = 0;
 static uint32_t      disp_state         = SEG_OFF;
 static uint32_t      prev_disp_state    = SEG_CLR;
 static bool          is_initialised         = false;
@@ -272,10 +270,13 @@ static void MX_GPIO_Init(void)
 void handle_encoder(void)
 {
   extern USBD_HandleTypeDef hUsbDeviceFS;
+
+  static int32_t heading_queue       = 0;
+  static bool    heading_lock        = false;
+  static int32_t heading_step_locked = 0;
+
   GPIO_PinState rot_1_dt = HAL_GPIO_ReadPin(ROT_1_DT_GPIO_Port, ROT_1_DT_Pin);
   GPIO_PinState rot_2_dt = HAL_GPIO_ReadPin(ROT_2_DT_GPIO_Port, ROT_2_DT_Pin);
-
-  int32_t heading_step = 1;
 
   /* Rotary Encoder 1 - ALTITUDE */
   if ((GPIO_PIN_SET == prev_rot_1_dt) && (GPIO_PIN_RESET == rot_1_dt))
@@ -321,19 +322,41 @@ void handle_encoder(void)
   /* Rotary Encoder 2 - HEADING */
   if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(ROT_2_SW_GPIO_Port, ROT_2_SW_Pin))
   {
-    heading_step = 20;
+    heading_lock = true;
   }
 
   if ((GPIO_PIN_SET == prev_rot_2_dt) && (GPIO_PIN_RESET == rot_2_dt))
   {
     if (GPIO_PIN_SET == HAL_GPIO_ReadPin(ROT_2_CLK_GPIO_Port, ROT_2_CLK_Pin))
     {
-      heading_queue -= heading_step;
+      heading_queue -= 1;
+
+      if (1 == heading_step_locked)
+      {
+        heading_lock = false;
+      }
+      else
+      {
+        heading_step_locked = -1;
+      }
     }
     else
     {
-      heading_queue += heading_step;
+      heading_queue += 1;
+
+      if (-1 == heading_step_locked)
+      {
+        heading_lock = false;
+      }
+      else
+      {
+        heading_step_locked = 1;
+      }
     }
+  }
+  else if (true == heading_lock)
+  {
+    heading_queue = heading_step_locked;
   }
 
   if (0 != heading_queue)
