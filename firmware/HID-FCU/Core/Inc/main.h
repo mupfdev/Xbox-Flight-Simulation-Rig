@@ -36,7 +36,13 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+typedef enum
+{
+  STATE_OFF,
+  STATE_AVIONICS_BUS2_BOOTUP,
+  STATE_READY
 
+} fcu_state;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -52,7 +58,6 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
@@ -88,8 +93,8 @@ void Error_Handler(void);
 #define ROT_1_CLK_GPIO_Port GPIOA
 #define ROT_1_DT_Pin GPIO_PIN_9
 #define ROT_1_DT_GPIO_Port GPIOA
-#define MASTER_BAT_ALT_Pin GPIO_PIN_10
-#define MASTER_BAT_ALT_GPIO_Port GPIOA
+#define START_SWITCH_Pin GPIO_PIN_10
+#define START_SWITCH_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 /* USER CODE END Private defines */

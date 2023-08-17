@@ -25,6 +25,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "display.h"
+#include "switch-panel.h"
 #include "usbd_hid.h"
 #include "usb_hid_keys.h"
 /* USER CODE END Includes */
@@ -50,19 +51,6 @@ typedef enum
   MODE_VERTICAL, /* 0 = VS,  1 = ALT */
 
 } fcu_mode;
-
-typedef enum
-{
-  STATE_COLD_DARK,
-  STATE_BAT_AVIONICS_ON,
-  STATE_STARTER_ON,
-  STATE_IGNITION_ON,
-  STATE_GENERATOR_ON,
-  STATE_IGNITION_OFF,
-  STATE_STARTER_OFF,
-  STATE_DONE
-
-} fcu_state;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -75,29 +63,30 @@ typedef enum
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
-static uint8_t       hid_report[8]      = { 0 };
+uint8_t hid_report[8]= { 0 };
+
 static fcu_mode      mode               = 0;
-static fcu_state     state              = STATE_COLD_DARK;
 static int32_t       altitude           = 0;
 static uint32_t      disp_state         = SEG_OFF;
 static uint32_t      prev_disp_state    = SEG_CLR;
-static bool          is_initialised         = false;
+static bool          is_initialised     = false;
 static GPIO_PinState prev_rot_1_dt = GPIO_PIN_RESET;
 static GPIO_PinState prev_rot_2_dt = GPIO_PIN_RESET;
-static GPIO_PinState master_bat_alt;
+static GPIO_PinState start_switch;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
-void handle_encoder(void);
-void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key);
-void handle_switch(void);
-void set_next_state(void);
+static void handle_encoder(void);
+static void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key);
+static void handle_red_switch(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -111,6 +100,8 @@ void set_next_state(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+  extern uint16_t switch_state;
+  fcu_state state = STATE_OFF;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -131,43 +122,146 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USB_DEVICE_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  master_bat_alt = HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin);
-  prev_rot_1_dt  = HAL_GPIO_ReadPin(ROT_1_DT_GPIO_Port, ROT_1_DT_Pin);
-  prev_rot_2_dt  = HAL_GPIO_ReadPin(ROT_2_DT_GPIO_Port, ROT_2_DT_Pin);
+  start_switch  = HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin);
+  prev_rot_1_dt = HAL_GPIO_ReadPin(ROT_1_DT_GPIO_Port, ROT_1_DT_Pin);
+  prev_rot_2_dt = HAL_GPIO_ReadPin(ROT_2_DT_GPIO_Port, ROT_2_DT_Pin);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (false == is_initialised)
-  {
-    if (master_bat_alt != HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin))
-    {
-      set_next_state();
-      is_initialised = true;
-      master_bat_alt = HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin);
-      continue;
-    }
-
-    HAL_Delay(10);
-  }
-
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    handle_switch();
-    handle_encoder();
-    handle_key(SL1_GPIO_Port, SL1_Pin, FCU_KEY_AP);
-    handle_key(SL2_GPIO_Port, SL2_Pin, FCU_KEY_HDG);
-    handle_key(SL3_GPIO_Port, SL3_Pin, FCU_KEY_UP);
-    handle_key(SL4_GPIO_Port, SL4_Pin, FCU_KEY_NAV);
-    handle_key(SL5_GPIO_Port, SL5_Pin, FCU_KEY_ALT);
-    handle_key(SL6_GPIO_Port, SL6_Pin, FCU_KEY_DOWN);
+    switch (state)
+    {
+      case STATE_OFF:
+      {
+        int battery_state;
+        int av_bus2_state;
+
+        is_initialised = false;
+        handle_switch_panel();
+        handle_red_switch();
+
+        battery_state = (switch_state & (1U << SW_BATTERY));
+        av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
+
+        if (0 == battery_state && 0 == av_bus2_state)
+        {
+          state = STATE_AVIONICS_BUS2_BOOTUP;
+        }
+        break;
+      }
+      case STATE_AVIONICS_BUS2_BOOTUP:
+      {
+        int battery_state;
+        int av_bus2_state;
+
+        for (int c = 1; c <= 4; c+= 1)
+        {
+          set_display(SEG_PFT, c);
+          for (int t = 0; t < 200; t+= 1)
+          {
+            handle_switch_panel();
+            handle_red_switch();
+
+            battery_state = (switch_state & (1U << SW_BATTERY));
+            av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
+
+            if (battery_state > 0 || av_bus2_state > 0)
+            {
+              state = STATE_OFF;
+              clear_display();
+              break;
+            }
+
+            HAL_Delay(10);
+          }
+        }
+        for (int t = 0; t < 200; t+= 1)
+        {
+          handle_switch_panel();
+          handle_red_switch();
+
+          battery_state = (switch_state & (1U << SW_BATTERY));
+          av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
+
+          if (battery_state > 0 || av_bus2_state > 0)
+          {
+            state = STATE_OFF;
+            clear_display();
+            break;
+          }
+
+          HAL_Delay(10);
+        }
+
+        fill_display();
+
+        for (int t = 0; t < 400; t+= 1)
+        {
+          handle_switch_panel();
+          handle_red_switch();
+
+          battery_state = (switch_state & (1U << SW_BATTERY));
+          av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
+
+          if (battery_state > 0 || av_bus2_state > 0)
+          {
+            state = STATE_OFF;
+            clear_display();
+            break;
+          }
+
+          HAL_Delay(10);
+        }
+
+        mode &= ~(1UL << MODE_AP);
+        state = STATE_READY;
+
+        clear_display();
+        prev_disp_state = ! disp_state; /* Hack. */
+
+        break;
+      }
+      case STATE_READY:
+      {
+        int battery_state;
+        int av_bus2_state;
+
+        is_initialised = true;
+        handle_switch_panel();
+        handle_red_switch();
+
+        battery_state = (switch_state & (1U << SW_BATTERY));
+        av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
+
+        if (battery_state > 0 || av_bus2_state > 0)
+        {
+          state = STATE_OFF;
+          clear_display();
+        }
+        else
+        {
+          handle_encoder();
+          handle_key(SL1_GPIO_Port, SL1_Pin, FCU_KEY_AP);
+          handle_key(SL2_GPIO_Port, SL2_Pin, FCU_KEY_HDG);
+          handle_key(SL3_GPIO_Port, SL3_Pin, FCU_KEY_UP);
+          handle_key(SL4_GPIO_Port, SL4_Pin, FCU_KEY_NAV);
+          handle_key(SL5_GPIO_Port, SL5_Pin, FCU_KEY_ALT);
+          handle_key(SL6_GPIO_Port, SL6_Pin, FCU_KEY_DOWN);
+        }
+        break;
+      }
+    }
+
     HAL_Delay(10);
+    /* USER CODE END 3 */
   }
-  /* USER CODE END 3 */
 }
 
 /**
@@ -217,6 +311,40 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 64;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -256,11 +384,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : MASTER_BAT_ALT_Pin */
-  GPIO_InitStruct.Pin = MASTER_BAT_ALT_Pin;
+  /*Configure GPIO pin : START_SWITCH_Pin */
+  GPIO_InitStruct.Pin = START_SWITCH_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(MASTER_BAT_ALT_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(START_SWITCH_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -399,7 +527,7 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
       switch (key)
       {
         case FCU_KEY_AP:
-          hid_report[2] = KEY_TAB;
+          hid_report[2] = KEY_J;
 
           mode ^= 1UL << MODE_AP;
 
@@ -421,8 +549,7 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           }
           break;
         case FCU_KEY_HDG:
-          hid_report[0] = KEY_MOD_LSHIFT;
-          hid_report[2] = KEY_Z;
+          hid_report[2] = KEY_K;
 
           mode ^= 1UL << MODE_LATERAL;
           mode |= 1UL << MODE_AP; /* Pilatus PC-6 (Milviz) */
@@ -445,12 +572,10 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           }
           break;
         case FCU_KEY_UP:
-          hid_report[0] = KEY_MOD_LALT;
-          hid_report[2] = KEY_I;
+          hid_report[2] = KEY_Z;
           break;
         case FCU_KEY_NAV:
-          hid_report[0] = KEY_MOD_LCTRL;
-          hid_report[2] = KEY_Z;
+          hid_report[2] = KEY_C;
 
           mode ^= 1UL << MODE_NAV;
 
@@ -472,8 +597,7 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           }
           break;
         case FCU_KEY_ALT:
-          hid_report[0] = KEY_MOD_LSHIFT;
-          hid_report[2] = KEY_X;
+          hid_report[2] = KEY_L;
 
           mode ^= 1UL << MODE_VERTICAL;
           mode |= 1UL << MODE_AP; /* Pilatus PC-6 (Milviz) */
@@ -495,8 +619,7 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           }
           break;
         case FCU_KEY_DOWN:
-          hid_report[0] = KEY_MOD_LALT;
-          hid_report[2] = KEY_K;
+          hid_report[2] = KEY_X;
           break;
       }
 
@@ -528,80 +651,25 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
   }
 }
 
-void handle_switch(void)
+void handle_red_switch(void)
 {
   extern USBD_HandleTypeDef hUsbDeviceFS;
+  extern uint8_t hid_report[8];
 
-  if (master_bat_alt != HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin))
+  if (start_switch != HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin))
   {
-    set_next_state();
-    master_bat_alt = HAL_GPIO_ReadPin(MASTER_BAT_ALT_GPIO_Port, MASTER_BAT_ALT_Pin);
-  }
-}
+    hid_report[2] = KEY_V;
+    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+    HAL_Delay(40);
 
-void set_next_state(void)
-{
-  extern USBD_HandleTypeDef hUsbDeviceFS;
-
-  state = state + 1;
-
-  switch (state)
-  {
-    default:
-    case STATE_COLD_DARK:
-    case STATE_DONE:
-      state = STATE_DONE;
-      return;
-    case STATE_BAT_AVIONICS_ON:
-      hid_report[0] = KEY_MOD_LALT;
-      hid_report[2] = KEY_B;
-      hid_report[3] = KEY_A;
-      break;
-    case STATE_STARTER_ON:
-      hid_report[0] = KEY_MOD_LALT;
-      hid_report[2] = KEY_Q;
-      hid_report[3] = KEY_W; /* Hack: This is needed to flip the ignition switch in the next state. */
-      break;
-    case STATE_IGNITION_ON:
-      hid_report[0] = KEY_MOD_LALT;
-      hid_report[2] = KEY_W;
-      break;
-    case STATE_GENERATOR_ON:
-      hid_report[0] = KEY_MOD_LALT;
-      hid_report[2] = KEY_N;
-      break;
-    case STATE_IGNITION_OFF:
-      hid_report[0] = KEY_MOD_LALT;
-      hid_report[2] = KEY_W;
-      break;
-    case STATE_STARTER_OFF:
-      hid_report[0] = KEY_MOD_LALT;
-      hid_report[2] = KEY_Q;
-      break;
-  }
-
-  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-  HAL_Delay(40);
-
-  /* Release keys. */
-  for (int i = 0; i < 8; i += 1)
-  {
-    hid_report[i] = KEY_NONE;
-  }
-  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-
-  if (STATE_BAT_AVIONICS_ON == state)
-  {
-    for (int c = 1; c <= 4; c+= 1)
+    /* Release keys. */
+    for (int i = 0; i < 8; i += 1)
     {
-      set_display(SEG_PFT, c);
-      HAL_Delay(2000);
+      hid_report[i] = KEY_NONE;
     }
-    HAL_Delay(2000);
+    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
 
-    fill_display();
-    HAL_Delay(4000);
-    set_display(SEG_OFF, 0);
+    start_switch = HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin);
   }
 }
 /* USER CODE END 4 */
