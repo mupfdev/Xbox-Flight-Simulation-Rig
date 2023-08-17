@@ -111,15 +111,15 @@ void handle_switch_panel(void)
           }
           else
           {
-            static bool ign_triggerd_once = false;
+            static bool ign_triggered_once = false;
 
             /* Hack: For some reason this is necessary so that the ingition
              * switch is reliably toggled the first time. */
-            if (false == ign_triggerd_once)
+            if (false == ign_triggered_once)
             {
               send_switch_event(SW_IGNITION_ON);
               HAL_Delay(100);
-              ign_triggerd_once = true;
+              ign_triggered_once = true;
             }
 
             send_switch_event(SW_IGNITION_ON);
