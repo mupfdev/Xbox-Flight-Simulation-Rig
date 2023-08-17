@@ -20,7 +20,7 @@
 | Anti Ice           | SET ANTI ICE ON                 | `H`             |
 | Anti Ice           | SET ANTI ICE OFF                | `H + LSHIFT`    |
 | Engine Instruments | TOGGLE PROPELLER DEICE          |                 |
-| Engine Instruments | TOGGLE MASTER STARTER SWITCH    | `I`             |
+| Engine Instruments | TOGGLE STARTER 1                | `I`             |
 | Engine Instruments | TOGGLE MASTER IGNITION SWITCH   | `U`             |
 | Exterior Lights    | TOGGLE LANDING LIGHTS           | `A`             |
 | Exterior Lights    | NAV LIGHTS ON                   | `O`             |
