@@ -164,7 +164,7 @@ int main(void)
         for (int c = 1; c <= 4; c+= 1)
         {
           set_display(SEG_PFT, c);
-          for (int t = 0; t < 200; t+= 1)
+          for (int t = 0; t < 180; t+= 1)
           {
             handle_switch_panel();
             handle_red_switch();
