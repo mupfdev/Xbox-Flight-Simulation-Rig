@@ -304,6 +304,7 @@ static void send_switch_event(switch_event event)
       hid_report[2] = KEY_E;
       break;
     case SW_AUX_F_PUMP_ON:
+    case SW_AUX_F_PUMP_OFF:
       hid_report[2] = KEY_R;
       break;
     case SW_AVIONIC_BUS1_ON:
