@@ -23,22 +23,20 @@ typedef enum
   SW_GENERATOR_OFF,
   SW_GEN_RESET_ON,
   SW_GEN_RESET_OFF,
-  SW_IGNITION_ON,
-  SW_IGNITION_OFF,
   SW_AUX_F_PUMP_ON,
   SW_AUX_F_PUMP_OFF,
   SW_AVIONIC_BUS1_ON,
   SW_AVIONIC_BUS1_OFF,
   SW_AVIONIC_BUS2_ON,
   SW_AVIONIC_BUS2_OFF,
+  SW_IGNITION_ON,
+  SW_IGNITION_OFF,
   SW_STARTER_ON,
   SW_STARTER_OFF,
   SW_NAV_LT_ON,
   SW_NAV_LT_OFF,
   SW_BEACON_ON,
   SW_BEACON_OFF,
-  SW_PROP_DEICE_ON,
-  SW_PROP_DEICE_OFF,
   SW_LANDING_LIGHT_ON,
   SW_LANDING_LIGHT_OFF,
   SW_LANDING_LIGHT_POS_UP,
@@ -48,7 +46,9 @@ typedef enum
   SW_CABIN_LIGHT_ON,
   SW_CABIN_LIGHT_OFF,
   SW_ANTI_ICE_ON,
-  SW_ANTI_ICE_OFF
+  SW_ANTI_ICE_OFF,
+  SW_PROP_DEICE_ON,
+  SW_PROP_DEICE_OFF
 
 } switch_event;
 
@@ -74,7 +74,7 @@ void handle_switch_panel(void)
     {
       switch (n)
       {
-        case 0:
+        case SW_BATTERY:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_BATTERY_OFF);
@@ -84,7 +84,7 @@ void handle_switch_panel(void)
             send_switch_event(SW_BATTERY_ON);
           }
           break;
-        case 1:
+        case SW_GENERATOR:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_GENERATOR_OFF);
@@ -94,7 +94,7 @@ void handle_switch_panel(void)
             send_switch_event(SW_GENERATOR_ON);
           }
           break;
-        case 2:
+        case SW_GEN_RESET:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_GEN_RESET_OFF);
@@ -104,7 +104,37 @@ void handle_switch_panel(void)
             send_switch_event(SW_GEN_RESET_ON);
           }
           break;
-        case 3:
+        case SW_AUX_F_PUMP:
+          if (bit_state > 0) /* OFF */
+          {
+            send_switch_event(SW_AUX_F_PUMP_OFF);
+          }
+          else
+          {
+            send_switch_event(SW_AUX_F_PUMP_ON);
+          }
+          break;
+        case SW_AVIONIC_BUS1:
+          if (bit_state > 0) /* OFF */
+          {
+            send_switch_event(SW_AVIONIC_BUS1_OFF);
+          }
+          else
+          {
+            send_switch_event(SW_AVIONIC_BUS1_ON);
+          }
+          break;
+        case SW_AVIONIC_BUS2:
+          if (bit_state > 0) /* OFF */
+          {
+            send_switch_event(SW_AVIONIC_BUS2_OFF);
+          }
+          else
+          {
+            send_switch_event(SW_AVIONIC_BUS2_ON);
+          }
+          break;
+        case SW_IGNITION:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_IGNITION_OFF);
@@ -125,37 +155,7 @@ void handle_switch_panel(void)
             send_switch_event(SW_IGNITION_ON);
           }
           break;
-        case 4:
-          if (bit_state > 0) /* OFF */
-          {
-            send_switch_event(SW_AUX_F_PUMP_OFF);
-          }
-          else
-          {
-            send_switch_event(SW_AUX_F_PUMP_ON);
-          }
-          break;
-        case 5:
-          if (bit_state > 0) /* OFF */
-          {
-            send_switch_event(SW_AVIONIC_BUS1_OFF);
-          }
-          else
-          {
-            send_switch_event(SW_AVIONIC_BUS1_ON);
-          }
-          break;
-        case 6:
-          if (bit_state > 0) /* OFF */
-          {
-            send_switch_event(SW_AVIONIC_BUS2_OFF);
-          }
-          else
-          {
-            send_switch_event(SW_AVIONIC_BUS2_ON);
-          }
-          break;
-        case 7:
+        case SW_STARTER:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_STARTER_OFF);
@@ -165,7 +165,7 @@ void handle_switch_panel(void)
             send_switch_event(SW_STARTER_ON);
           }
           break;
-        case 8:
+        case SW_NAV_LT:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_NAV_LT_OFF);
@@ -175,7 +175,7 @@ void handle_switch_panel(void)
             send_switch_event(SW_NAV_LT_ON);
           }
           break;
-        case 9:
+        case SW_BEACON:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_BEACON_OFF);
@@ -185,17 +185,7 @@ void handle_switch_panel(void)
             send_switch_event(SW_BEACON_ON);
           }
           break;
-        case 10:
-          if (bit_state > 0) /* OFF */
-          {
-            send_switch_event(SW_PROP_DEICE_OFF);
-          }
-          else
-          {
-            send_switch_event(SW_PROP_DEICE_ON);
-          }
-          break;
-        case 11:
+        case SW_LANDING_LIGHT:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_LANDING_LIGHT_OFF);
@@ -205,7 +195,7 @@ void handle_switch_panel(void)
             send_switch_event(SW_LANDING_LIGHT_ON);
           }
           break;
-        case 12:
+        case SW_LANDING_LIGHT_POS:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_LANDING_LIGHT_POS_DOWN);
@@ -215,7 +205,7 @@ void handle_switch_panel(void)
             send_switch_event(SW_LANDING_LIGHT_POS_UP);
           }
           break;
-        case 13:
+        case SW_INSTR_LIGHT:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_INSTR_LIGHT_OFF);
@@ -225,7 +215,7 @@ void handle_switch_panel(void)
             send_switch_event(SW_INSTR_LIGHT_ON);
           }
           break;
-        case 14:
+        case SW_CABIN_LIGHT:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_CABIN_LIGHT_OFF);
@@ -235,7 +225,7 @@ void handle_switch_panel(void)
             send_switch_event(SW_CABIN_LIGHT_ON);
           }
           break;
-        case 15:
+        case SW_ANTI_ICE:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_ANTI_ICE_OFF);
@@ -243,6 +233,16 @@ void handle_switch_panel(void)
           else
           {
             send_switch_event(SW_ANTI_ICE_ON);
+          }
+          break;
+        case SW_PROP_DEICE:
+          if (bit_state > 0) /* OFF */
+          {
+            send_switch_event(SW_PROP_DEICE_OFF);
+          }
+          else
+          {
+            send_switch_event(SW_PROP_DEICE_ON);
           }
           break;
       }
@@ -257,13 +257,13 @@ static int poll_switch_panel(void)
 
   prev_switch_state = switch_state;
 
-  status = HAL_I2C_Master_Receive(&hi2c1, 0x40, &buffer[0], 1, 100);
+  status = HAL_I2C_Master_Receive(&hi2c1, 0x44, &buffer[0], 1, 100);
   if (HAL_OK != status)
   {
     return -1;
   }
 
-  status = HAL_I2C_Master_Receive(&hi2c1, 0x44, &buffer[1], 1, 100);
+  status = HAL_I2C_Master_Receive(&hi2c1, 0x40, &buffer[1], 1, 100);
   if (HAL_OK != status)
   {
     return -1;
