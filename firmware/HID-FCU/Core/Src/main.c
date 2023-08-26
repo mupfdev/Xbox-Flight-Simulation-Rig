@@ -101,7 +101,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
   extern uint16_t switch_state;
-  fcu_state state = STATE_READY;//STATE_OFF;
+  fcu_state state = STATE_OFF;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -242,8 +242,8 @@ int main(void)
 
         if (battery_state > 0 || av_bus2_state > 0)
         {
-          //state = STATE_OFF;
-          //clear_display();
+          state = STATE_OFF;
+          clear_display();
         }
         else
         {
