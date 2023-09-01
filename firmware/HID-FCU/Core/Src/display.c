@@ -94,7 +94,7 @@ void set_display(uint32_t state, int32_t altitude)
     else if (altitude >= 10000)
 	{
     	extern const uint8_t _tm1637_digit[];
-    	char str[2];
+    	char str[6];
 
     	int32_t tmp = ((altitude / 10000) * 10000);
     	altitude    = altitude - tmp;
@@ -141,7 +141,7 @@ void set_display(uint32_t state, int32_t altitude)
           break;
     	}
 
-    	snprintf(str, 2 , "%ld", tmp);
+    	snprintf(str, 6 , "%ld", tmp);
 
     	seg[3] = _tm1637_digit[str[0] - 48];
 	}

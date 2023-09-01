@@ -320,7 +320,7 @@ static int poll_switch_panel(void)
   }
   else
   {
-    switch_state = (switch_state & 0xff00ffff) | ((uint32_t)buffer[3] << 16);
+    switch_state = (switch_state & 0xff00ffff) | ((uint32_t)buffer[2] << 16);
   }
 
   status = HAL_I2C_Master_Receive(&hi2c1, 0x43, &buffer[3], 1, 100);
@@ -330,7 +330,7 @@ static int poll_switch_panel(void)
   }
   else
   {
-    switch_state = (switch_state & 0x00ffffff) | ((uint32_t)buffer[4] << 24);
+    switch_state = (switch_state & 0x00ffffff) | ((uint32_t)buffer[3] << 24);
   }
 
   return 0;
