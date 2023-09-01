@@ -48,13 +48,29 @@ typedef enum
   SW_ANTI_ICE_ON,
   SW_ANTI_ICE_OFF,
   SW_PROP_DEICE_ON,
-  SW_PROP_DEICE_OFF
+  SW_PROP_DEICE_OFF,
+  SW_RESERVED_1,
+  SW_RESERVED_2,
+  SW_RESERVED_3,
+  SW_RESERVED_4,
+  SW_RESERVED_5,
+  SW_RESERVED_6,
+  SW_RESERVED_7,
+  SW_RESERVED_8,
+  SW_RESERVED_9,
+  SW_RESERVED_10,
+  SW_RESERVED_11,
+  SW_RESERVED_12,
+  SW_RESERVED_13,
+  SW_RESERVED_14,
+  SW_RESERVED_15,
+  SW_RESERVED_16
 
 } switch_event;
 
 extern I2C_HandleTypeDef hi2c1;
 
-uint16_t switch_state = 0x00;
+uint32_t switch_state = 0x00;
 
 static uint16_t prev_switch_state = 0x00;
 
@@ -65,10 +81,10 @@ void handle_switch_panel(void)
 {
   poll_switch_panel();
 
-  for (int n = 0; n < 16; n = n + 1)
+  for (int n = 0; n < 32; n = n + 1)
   {
-    uint16_t bit_state      = (switch_state & (1U << n));
-    uint16_t prev_bit_state = (prev_switch_state & (1U << n));
+    uint32_t bit_state      = (switch_state & (1U << n));
+    uint32_t prev_bit_state = (prev_switch_state & (1U << n));
 
     if (bit_state != prev_bit_state)
     {
@@ -245,6 +261,24 @@ void handle_switch_panel(void)
             send_switch_event(SW_PROP_DEICE_ON);
           }
           break;
+        case SW_RESERVED_1:
+        case SW_RESERVED_2:
+        case SW_RESERVED_3:
+        case SW_RESERVED_4:
+        case SW_RESERVED_5:
+        case SW_RESERVED_6:
+        case SW_RESERVED_7:
+        case SW_RESERVED_8:
+        case SW_RESERVED_9:
+        case SW_RESERVED_10:
+        case SW_RESERVED_11:
+        case SW_RESERVED_12:
+        case SW_RESERVED_13:
+        case SW_RESERVED_14:
+        case SW_RESERVED_15:
+        case SW_RESERVED_16:
+        default:
+          break;
       }
     }
   }
@@ -253,24 +287,51 @@ void handle_switch_panel(void)
 static int poll_switch_panel(void)
 {
   HAL_StatusTypeDef status;
-  uint8_t           buffer[2] = { 0 };
+  uint8_t           buffer[4] = { 0xff, 0xff, 0xff, 0xff };
 
   prev_switch_state = switch_state;
 
-  status = HAL_I2C_Master_Receive(&hi2c1, 0x44, &buffer[0], 1, 100);
+  /* Primary switch panel. */
+  status = HAL_I2C_Master_Receive(&hi2c1, 0x45, &buffer[0], 1, 100);
   if (HAL_OK != status)
   {
     return -1;
   }
+  else
+  {
+    switch_state = (switch_state & 0xffffff00) | buffer[0];
+  }
 
-  status = HAL_I2C_Master_Receive(&hi2c1, 0x40, &buffer[1], 1, 100);
+  status = HAL_I2C_Master_Receive(&hi2c1, 0x41, &buffer[1], 1, 100);
   if (HAL_OK != status)
   {
     return -1;
   }
+  else
+  {
+    switch_state = (switch_state & 0xffff00ff) | ((uint32_t)switch_state <<  8);
+  }
 
-  switch_state = (switch_state & 0xff00) |  buffer[0];
-  switch_state = (switch_state & 0x00ff) | ((uint16_t)buffer[1] <<  8);
+  /* Secondary switch panel. */
+  status = HAL_I2C_Master_Receive(&hi2c1, 0x47, &buffer[2], 1, 100);
+  if (HAL_OK != status)
+  {
+    return -1;
+  }
+  else
+  {
+    switch_state = (switch_state & 0xff00ffff) | ((uint32_t)buffer[3] << 16);
+  }
+
+  status = HAL_I2C_Master_Receive(&hi2c1, 0x43, &buffer[3], 1, 100);
+  if (HAL_OK != status)
+  {
+    return -1;
+  }
+  else
+  {
+    switch_state = (switch_state & 0x00ffffff) | ((uint32_t)buffer[4] << 24);
+  }
 
   return 0;
 }
@@ -382,6 +443,22 @@ static void send_switch_event(switch_event event)
       hid_report[0] = KEY_MOD_LSHIFT;
       hid_report[2] = KEY_H;
       break;
+    case SW_RESERVED_1:
+    case SW_RESERVED_2:
+    case SW_RESERVED_3:
+    case SW_RESERVED_4:
+    case SW_RESERVED_5:
+    case SW_RESERVED_6:
+    case SW_RESERVED_7:
+    case SW_RESERVED_8:
+    case SW_RESERVED_9:
+    case SW_RESERVED_10:
+    case SW_RESERVED_11:
+    case SW_RESERVED_12:
+    case SW_RESERVED_13:
+    case SW_RESERVED_14:
+    case SW_RESERVED_15:
+    case SW_RESERVED_16:
     default:
       return;
   }
