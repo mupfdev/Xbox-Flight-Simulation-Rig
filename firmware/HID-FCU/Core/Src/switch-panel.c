@@ -72,7 +72,7 @@ extern I2C_HandleTypeDef hi2c1;
 
 uint32_t switch_state = 0x00;
 
-static uint16_t prev_switch_state = 0x00;
+static uint32_t prev_switch_state = 0x00;
 
 static int poll_switch_panel(void);
 static void send_switch_event(switch_event event);
@@ -309,7 +309,7 @@ static int poll_switch_panel(void)
   }
   else
   {
-    switch_state = (switch_state & 0xffff00ff) | ((uint32_t)switch_state <<  8);
+    switch_state = (switch_state & 0xffff00ff) | ((uint32_t)buffer[1]<<  8);
   }
 
   /* Secondary switch panel. */
