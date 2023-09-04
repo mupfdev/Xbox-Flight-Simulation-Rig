@@ -1,4 +1,4 @@
-# HID-FCU keyboard profile
+# Keyboard profile
 
 | Category           | Setting                         | Key Combination |
 | :---               | :---                            |       :---:     |
@@ -16,7 +16,7 @@
 | Electrics          | MASTER BATTERY ON               | `Q`             |
 | Electrics          | MASTER BATTERY OFF              | `Q + LSHIFT`    |
 | Electrics          | ALTERNATOR ON                   | `W`             |
-| Electrics          | ALTERNATOR OFF                  | `W`             |
+| Electrics          | ALTERNATOR OFF                  | `W + LSHIFT`    |
 | Anti Ice           | SET ANTI ICE ON                 | `H`             |
 | Anti Ice           | SET ANTI ICE OFF                | `H + LSHIFT`    |
 | Engine Instruments | TOGGLE PROPELLER DEICE          |                 |
@@ -37,3 +37,14 @@
 | Autopilot          | INCREASE AUTOPILOT REFERENCE VS | `Z`             |
 | Autopilot          | DECREASE AUTOPILOT REFERENCE VS | `X`             |
 | Autopilot          | AUTOPILOT NAV1 HOLD             | `C`             |
+| Throttle           | THROTTLE CUT                    | `T` + `0`       |
+| Throttle           | THROTTLE 90%                    | `T` + `9`       |
+| Throttle           | THROTTLE 80%                    | `T` + `8`       |
+| Throttle           | THROTTLE 70%                    | `T` + `7`       |
+| Throttle           | THROTTLE 60%                    | `T` + `6`       |
+| Throttle           | THROTTLE 50%                    | `T` + `5`       |
+| Throttle           | THROTTLE 40%                    | `T` + `4`       |
+| Throttle           | THROTTLE 30%                    | `T` + `3`       |
+| Throttle           | THROTTLE 20%                    | `T` + `2`       |
+| Throttle           | THROTTLE 10%                    | `T` + `1`       |
+| Throttle           | THROTTLE 1 AXIS (0 TO 100%)     | `T` + `-`       |
