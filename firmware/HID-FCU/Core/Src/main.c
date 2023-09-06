@@ -492,11 +492,13 @@ void handle_encoder(void)
     if (heading_queue < 0)
     {
       hid_report[2] = KEY_LEFTBRACE;
+
       heading_queue += 1;
     }
     else if (heading_queue > 0)
     {
       hid_report[2] = KEY_RIGHTBRACE;
+
       heading_queue -= 1;
     }
 
@@ -527,7 +529,8 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
       switch (key)
       {
         case FCU_KEY_AP:
-          hid_report[2] = KEY_J;
+          hid_report[0] = KEY_MOD_LALT;
+          hid_report[2] = KEY_V;
 
           mode ^= 1UL << MODE_AP;
 
@@ -549,7 +552,8 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           }
           break;
         case FCU_KEY_HDG:
-          hid_report[2] = KEY_K;
+          hid_report[0] = KEY_MOD_LALT;
+          hid_report[2] = KEY_B;
 
           mode ^= 1UL << MODE_LATERAL;
           mode |= 1UL << MODE_AP; /* Pilatus PC-6 (Milviz) */
@@ -572,10 +576,12 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           }
           break;
         case FCU_KEY_UP:
-          hid_report[2] = KEY_Z;
+          hid_report[0] = KEY_MOD_LALT;
+          hid_report[2] = KEY_N;
           break;
         case FCU_KEY_NAV:
-          hid_report[2] = KEY_C;
+          hid_report[0] = KEY_MOD_RALT;
+          hid_report[2] = KEY_V;
 
           mode ^= 1UL << MODE_NAV;
 
@@ -597,7 +603,8 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           }
           break;
         case FCU_KEY_ALT:
-          hid_report[2] = KEY_L;
+          hid_report[0] = KEY_MOD_RALT;
+          hid_report[2] = KEY_B;
 
           mode ^= 1UL << MODE_VERTICAL;
           mode |= 1UL << MODE_AP; /* Pilatus PC-6 (Milviz) */
@@ -619,7 +626,8 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           }
           break;
         case FCU_KEY_DOWN:
-          hid_report[2] = KEY_X;
+          hid_report[0] = KEY_MOD_RALT;
+          hid_report[2] = KEY_N;
           break;
       }
 
@@ -658,7 +666,9 @@ void handle_red_switch(void)
 
   if (start_switch != HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin))
   {
-    hid_report[2] = KEY_V;
+    hid_report[0] = KEY_MOD_LALT;
+    hid_report[2] = KEY_M;
+
     USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
     HAL_Delay(40);
 
