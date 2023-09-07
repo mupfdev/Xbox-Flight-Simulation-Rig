@@ -9,9 +9,8 @@
 #include <stdint.h>
 #include "stm32f1xx_hal.h"
 #include "switch-panel.h"
-#include "usb_device.h"
-#include "usbd_hid.h"
 #include "usb_hid_keys.h"
+#include "usbd_hid.h"
 
 #define OFF_POSITION 1
 
@@ -49,12 +48,12 @@ typedef enum
   SW_ANTI_ICE_OFF,
   SW_PROP_DEICE_ON,
   SW_PROP_DEICE_OFF,
-  SW_RESERVED_1_ON,
-  SW_RESERVED_1_OFF,
-  SW_RESERVED_2_ON,
-  SW_RESERVED_2_OFF,
-  SW_RESERVED_3_ON,
-  SW_RESERVED_3_OFF,
+  SW_PARKING_BRAKE_ON,
+  SW_PARKING_BRAKE_OFF,
+  SW_FUEL_VALVE_ON,
+  SW_FUEL_VALVE_OFF,
+  SW_TAIL_WHEEL_LOCK_ON,
+  SW_TAIL_WHEEL_LOCK_OFF,
   SW_RESERVED_4_ON,
   SW_RESERVED_4_OFF,
   SW_RESERVED_5_ON,
@@ -79,15 +78,14 @@ typedef enum
   SW_RESERVED_14_OFF,
   SW_RESERVED_15_ON,
   SW_RESERVED_15_OFF,
-  SW_RESERVED_16_ON,
-  SW_RESERVED_16_OFF
+  SW_SYNC_MODE_ON,
+  SW_SYNC_MODE_OFF
 
 } switch_event;
 
 extern I2C_HandleTypeDef hi2c1;
 
-uint32_t switch_state = 0x00;
-
+static uint32_t switch_state      = 0x00;
 static uint32_t prev_switch_state = 0x00;
 
 static int poll_switch_panel(void);
@@ -180,7 +178,8 @@ void handle_switch_panel(void)
             if (false == ign_triggered_once)
             {
               send_switch_event(SW_IGNITION_ON);
-              HAL_Delay(100);
+              send_switch_event(SW_IGNITION_ON);
+              HAL_Delay(50);
               ign_triggered_once = true;
             }
 
@@ -277,34 +276,34 @@ void handle_switch_panel(void)
             send_switch_event(SW_PROP_DEICE_ON);
           }
           break;
-        case SW_RESERVED_1:
+        case SW_PARKING_BRAKE:
           if (bit_state > 0) /* OFF */
           {
-            send_switch_event(SW_RESERVED_1_OFF);
+            send_switch_event(SW_PARKING_BRAKE_OFF);
           }
           else
           {
-            send_switch_event(SW_RESERVED_1_ON);
+            send_switch_event(SW_PARKING_BRAKE_ON);
           }
           break;
-        case SW_RESERVED_2:
+        case SW_FUEL_VALVE:
           if (bit_state > 0) /* OFF */
           {
-            send_switch_event(SW_RESERVED_2_OFF);
+            send_switch_event(SW_FUEL_VALVE_OFF);
           }
           else
           {
-            send_switch_event(SW_RESERVED_2_ON);
+            send_switch_event(SW_FUEL_VALVE_ON);
           }
           break;
-        case SW_RESERVED_3:
+        case SW_TAIL_WHEEL_LOCK:
           if (bit_state > 0) /* OFF */
           {
-            send_switch_event(SW_RESERVED_3_OFF);
+            send_switch_event(SW_TAIL_WHEEL_LOCK_OFF);
           }
           else
           {
-            send_switch_event(SW_RESERVED_3_ON);
+            send_switch_event(SW_TAIL_WHEEL_LOCK_ON);
           }
           break;
         case SW_RESERVED_4:
@@ -347,7 +346,7 @@ void handle_switch_panel(void)
             send_switch_event(SW_RESERVED_7_ON);
           }
           break;
-        case SW_RESERVED_8:
+        case SW_PAUSE:
           if (bit_state > 0) /* OFF */
           {
             send_switch_event(SW_RESERVED_8_OFF);
@@ -427,14 +426,14 @@ void handle_switch_panel(void)
             send_switch_event(SW_RESERVED_15_ON);
           }
           break;
-        case SW_RESERVED_16:
+        case SW_SYNC_MODE:
           if (bit_state > 0) /* OFF */
           {
-            send_switch_event(SW_RESERVED_16_OFF);
+            send_switch_event(SW_SYNC_MODE_OFF);
           }
           else
           {
-            send_switch_event(SW_RESERVED_16_ON);
+            send_switch_event(SW_SYNC_MODE_ON);
           }
           break;
         default:
@@ -442,6 +441,11 @@ void handle_switch_panel(void)
       }
     }
   }
+}
+
+uint32_t get_switch_state(void)
+{
+  return switch_state;
 }
 
 static int poll_switch_panel(void)
@@ -499,7 +503,8 @@ static int poll_switch_panel(void)
 static void send_switch_event(switch_event event)
 {
   extern USBD_HandleTypeDef hUsbDeviceFS;
-  extern uint8_t hid_report[8];
+
+  uint8_t hid_report[8] = { 0 };
 
   switch (event)
   {
@@ -631,27 +636,27 @@ static void send_switch_event(switch_event event)
       hid_report[0] = KEY_MOD_LALT;
       hid_report[2] = KEY_C;
       break;
-    case SW_RESERVED_1_ON:
+    case SW_PARKING_BRAKE_ON:
       hid_report[0] = KEY_MOD_RALT;
       hid_report[2] = KEY_1;
       break;
-    case SW_RESERVED_1_OFF:
+    case SW_PARKING_BRAKE_OFF:
       hid_report[0] = KEY_MOD_RALT;
       hid_report[2] = KEY_2;
       break;
-    case SW_RESERVED_2_ON:
+    case SW_FUEL_VALVE_ON:
       hid_report[0] = KEY_MOD_RALT;
       hid_report[2] = KEY_3;
       break;
-    case SW_RESERVED_2_OFF:
+    case SW_FUEL_VALVE_OFF:
       hid_report[0] = KEY_MOD_RALT;
       hid_report[2] = KEY_4;
       break;
-    case SW_RESERVED_3_ON:
+    case SW_TAIL_WHEEL_LOCK_ON:
       hid_report[0] = KEY_MOD_RALT;
       hid_report[2] = KEY_5;
       break;
-    case SW_RESERVED_3_OFF:
+    case SW_TAIL_WHEEL_LOCK_OFF:
       hid_report[0] = KEY_MOD_RALT;
       hid_report[2] = KEY_6;
       break;
@@ -751,11 +756,11 @@ static void send_switch_event(switch_event event)
       hid_report[0] = KEY_MOD_RALT;
       hid_report[2] = KEY_Z;
       break;
-    case SW_RESERVED_16_ON:
+    case SW_SYNC_MODE_ON:
       hid_report[0] = KEY_MOD_RALT;
       hid_report[2] = KEY_X;
       break;
-    case SW_RESERVED_16_OFF:
+    case SW_SYNC_MODE_OFF:
       hid_report[0] = KEY_MOD_RALT;
       hid_report[2] = KEY_C;
       break;

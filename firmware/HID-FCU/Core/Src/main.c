@@ -26,8 +26,8 @@
 #include <stdint.h>
 #include "display.h"
 #include "switch-panel.h"
-#include "usbd_hid.h"
 #include "usb_hid_keys.h"
+#include "usbd_hid.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -66,13 +66,11 @@ typedef enum
 I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
-uint8_t hid_report[8]= { 0 };
-
-static fcu_mode      mode               = 0;
-static int32_t       altitude           = 0;
-static uint32_t      disp_state         = SEG_OFF;
-static uint32_t      prev_disp_state    = SEG_CLR;
-static bool          is_initialised     = false;
+static fcu_mode      mode            = 0;
+static int32_t       altitude        = 0;
+static uint32_t      disp_state      = SEG_OFF;
+static uint32_t      prev_disp_state = SEG_CLR;
+static bool          is_initialised  = false;
 static GPIO_PinState prev_rot_1_dt = GPIO_PIN_RESET;
 static GPIO_PinState prev_rot_2_dt = GPIO_PIN_RESET;
 static GPIO_PinState start_switch;
@@ -87,6 +85,7 @@ static void MX_I2C1_Init(void);
 static void handle_encoder(void);
 static void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key);
 static void handle_red_switch(void);
+static void send_report(uint8_t hid_report[]);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -100,7 +99,6 @@ static void handle_red_switch(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  extern uint16_t switch_state;
   fcu_state state = STATE_OFF;
   /* USER CODE END 1 */
 
@@ -133,6 +131,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    uint32_t battery_state;
+    uint32_t av_bus2_state;
+    uint32_t switch_state;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -140,13 +141,11 @@ int main(void)
     {
       case STATE_OFF:
       {
-        int battery_state;
-        int av_bus2_state;
-
         is_initialised = false;
         handle_switch_panel();
         handle_red_switch();
 
+        switch_state  = get_switch_state();
         battery_state = (switch_state & (1U << SW_BATTERY));
         av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
 
@@ -158,9 +157,6 @@ int main(void)
       }
       case STATE_AVIONICS_BUS2_BOOTUP:
       {
-        int battery_state;
-        int av_bus2_state;
-
         for (int c = 1; c <= 4; c+= 1)
         {
           set_display(SEG_PFT, c);
@@ -169,6 +165,7 @@ int main(void)
             handle_switch_panel();
             handle_red_switch();
 
+            switch_state  = get_switch_state();
             battery_state = (switch_state & (1U << SW_BATTERY));
             av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
 
@@ -187,6 +184,7 @@ int main(void)
           handle_switch_panel();
           handle_red_switch();
 
+          switch_state  = get_switch_state();
           battery_state = (switch_state & (1U << SW_BATTERY));
           av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
 
@@ -207,6 +205,7 @@ int main(void)
           handle_switch_panel();
           handle_red_switch();
 
+          switch_state  = get_switch_state();
           battery_state = (switch_state & (1U << SW_BATTERY));
           av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
 
@@ -230,13 +229,11 @@ int main(void)
       }
       case STATE_READY:
       {
-        int battery_state;
-        int av_bus2_state;
-
         is_initialised = true;
         handle_switch_panel();
         handle_red_switch();
 
+        switch_state  = get_switch_state();
         battery_state = (switch_state & (1U << SW_BATTERY));
         av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
 
@@ -395,13 +392,13 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void handle_encoder(void)
+static void handle_encoder(void)
 {
-  extern USBD_HandleTypeDef hUsbDeviceFS;
-
   static int32_t heading_queue       = 0;
   static bool    heading_lock        = false;
   static int32_t heading_step_locked = 0;
+
+  uint8_t hid_report[8] = { 0 };
 
   GPIO_PinState rot_1_dt = HAL_GPIO_ReadPin(ROT_1_DT_GPIO_Port, ROT_1_DT_Pin);
   GPIO_PinState rot_2_dt = HAL_GPIO_ReadPin(ROT_2_DT_GPIO_Port, ROT_2_DT_Pin);
@@ -409,41 +406,36 @@ void handle_encoder(void)
   /* Rotary Encoder 1 - ALTITUDE */
   if ((GPIO_PIN_SET == prev_rot_1_dt) && (GPIO_PIN_RESET == rot_1_dt))
   {
+    uint32_t sync_mode_state = (get_switch_state() & (1U << SW_SYNC_MODE));
+
     if (GPIO_PIN_SET == HAL_GPIO_ReadPin(ROT_1_CLK_GPIO_Port, ROT_1_CLK_Pin))
     {
-      if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(ROT_1_SW_GPIO_Port, ROT_1_SW_Pin))
-      {
-        hid_report[2] = KEY_NONE;
-      }
-      else
+      if (sync_mode_state != 0)
       {
         hid_report[2] = KEY_MINUS;
       }
+      else
+      {
+        hid_report[2] = KEY_NONE;
+      }
+
       altitude -= 100;
     }
     else
     {
-      if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(ROT_1_SW_GPIO_Port, ROT_1_SW_Pin))
-      {
-        hid_report[2] = KEY_NONE;
-      }
-      else
+      if (sync_mode_state != 0)
       {
         hid_report[2] = KEY_EQUAL;
       }
+      else
+      {
+        hid_report[2] = KEY_NONE;
+      }
+
       altitude += 100;
     }
 
-    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-    HAL_Delay(40);
-
-    /* Release keys. */
-    for (int i = 0; i < 8; i += 1)
-    {
-      hid_report[i] = KEY_NONE;
-    }
-    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-
+    send_report(hid_report);
     set_display(disp_state, altitude);
   }
 
@@ -502,25 +494,19 @@ void handle_encoder(void)
       heading_queue -= 1;
     }
 
-    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-    HAL_Delay(40);
-
-    /* Release keys. */
-    for (int i = 0; i < 8; i += 1)
-    {
-      hid_report[i] = KEY_NONE;
-    }
-    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+    send_report(hid_report);
   }
 
   prev_rot_1_dt = rot_1_dt;
   prev_rot_2_dt = rot_2_dt;
 }
 
-void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
+static void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
 {
-  extern USBD_HandleTypeDef hUsbDeviceFS;
   static fcu_key key_lock = 0;
+
+  uint8_t  hid_report[8] = { 0 };
+  uint32_t sync_mode_state;;
 
   if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(GPIOx, GPIO_Pin))
   {
@@ -631,17 +617,10 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
           break;
       }
 
-      if (GPIO_PIN_SET == HAL_GPIO_ReadPin(ROT_1_SW_GPIO_Port, ROT_1_SW_Pin))
+      sync_mode_state = (get_switch_state() & (1U << SW_SYNC_MODE));
+      if (sync_mode_state != 0)
       {
-        USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-        HAL_Delay(40);
-
-        /* Release keys. */
-        for (int i = 0; i < 8; i += 1)
-        {
-          hid_report[i] = KEY_NONE;
-        }
-        USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+        send_report(hid_report);
       }
     }
 
@@ -659,28 +638,34 @@ void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
   }
 }
 
-void handle_red_switch(void)
+static void handle_red_switch(void)
 {
-  extern USBD_HandleTypeDef hUsbDeviceFS;
-  extern uint8_t hid_report[8];
+  uint8_t hid_report[8] = { 0 };
 
   if (start_switch != HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin))
   {
     hid_report[0] = KEY_MOD_LALT;
     hid_report[2] = KEY_M;
 
-    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-    HAL_Delay(40);
-
-    /* Release keys. */
-    for (int i = 0; i < 8; i += 1)
-    {
-      hid_report[i] = KEY_NONE;
-    }
-    USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+    send_report(hid_report);
 
     start_switch = HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin);
   }
+}
+
+static void send_report(uint8_t hid_report[])
+{
+  extern USBD_HandleTypeDef hUsbDeviceFS;
+
+  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+  HAL_Delay(40);
+
+  /* Release keys. */
+  for (int i = 0; i < 8; i += 1)
+  {
+    hid_report[i] = KEY_NONE;
+  }
+  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
 }
 /* USER CODE END 4 */
 

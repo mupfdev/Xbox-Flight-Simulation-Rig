@@ -29,14 +29,14 @@ typedef enum
   SW_CABIN_LIGHT,
   SW_ANTI_ICE,
   SW_PROP_DEICE,
-  SW_RESERVED_1,
-  SW_RESERVED_2,
-  SW_RESERVED_3,
+  SW_PARKING_BRAKE,
+  SW_FUEL_VALVE,
+  SW_TAIL_WHEEL_LOCK,
   SW_RESERVED_4,
   SW_RESERVED_5,
   SW_RESERVED_6,
   SW_RESERVED_7,
-  SW_RESERVED_8,
+  SW_PAUSE,
   SW_RESERVED_9,
   SW_RESERVED_10,
   SW_RESERVED_11,
@@ -44,10 +44,11 @@ typedef enum
   SW_RESERVED_13,
   SW_RESERVED_14,
   SW_RESERVED_15,
-  SW_RESERVED_16
+  SW_SYNC_MODE
 
 } switch_id;
 
-void handle_switch_panel(void);
+void     handle_switch_panel(void);
+uint32_t get_switch_state(void);
 
 #endif /* INC_SWITCH_PANEL_H_ */
