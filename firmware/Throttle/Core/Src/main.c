@@ -74,7 +74,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
-static int nearest(int range, int n);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -125,7 +124,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
     for (axis_index_t index = 0; index <= AXIS_MIXTURE; index += 1)
     {
-      static uint64_t prev_percentage[3];
+      static uint64_t prev_percentage[3] = { 50, 50, 50 };
 
       uint8_t  channel;
       int16_t  lower_limit;
@@ -185,88 +184,125 @@ int main(void)
         }
       }
 
-      if ((abs(percentage[index] - prev_percentage[index]) >= 5) && (1 == index))
+      hid_report[0] = KEY_MOD_LCTRL;
+
+      switch (index)
       {
-        int  setting  = nearest(5, percentage[index]);
-        bool send_key = true;
-        bool release  = true;
+        case AXIS_PROP:
+          break;
+        case AXIS_THROTTLE:
+          hid_report[2] = KEY_T;
 
-        switch (index)
-        {
-          case AXIS_PROP:
-            break;
-          case AXIS_THROTTLE:
-            hid_report[2] = KEY_T;
+          switch (percentage[index])
+          {
+            case 36:
+            case 37:
+            case 38:
+            case 39:
+            case 40:
+              hid_report[3] = KEY_0;
+              break;
+            case 45:
+              hid_report[3] = KEY_1;
+              break;
+            case 50:
+                hid_report[3] = KEY_2;
+              break;
+            case 55:
+              hid_report[3] = KEY_3;
+              break;
+            case 60:
+              hid_report[3] = KEY_4;
+              break;
+            case 65:
+              hid_report[3] = KEY_5;
+              break;
+            case 70:
+              hid_report[3] = KEY_6;
+              break;
+            case 75:
+              hid_report[3] = KEY_7;
+              break;
+            case 80:
+              hid_report[3] = KEY_8;
+              break;
+            case 90:
+              hid_report[3] = KEY_9;
+            case 100:
+              hid_report[3] = KEY_EQUAL;
+              break;
+            default:
+              if ((prev_percentage[index] < percentage[index]))
+              {
+                hid_report[3] = KEY_RIGHTBRACE;
+              }
+              else if ((prev_percentage[index] > percentage[index]) || (0 == prev_percentage[index] && 0 == percentage[index]))
+              {
+                hid_report[3] = KEY_LEFTBRACE;
+              }
+              else
+              {
+                prev_percentage[index] = percentage[index];
+                HAL_Delay(10);
+                continue;
+              }
+              break;
+          }
+          break;
 
-            if (percentage[index] <= 30)
+        case AXIS_MIXTURE:
+          hid_report[2] = KEY_M;
+
+          if (percentage[index] == 0) /* CUT OFF. */
+          {
+            hid_report[3] = KEY_0;
+          }
+          else if (prev_percentage[index] == 0) /* Transition from CUT OFF. */
+          {
+            if (percentage[index] >= 70) /* HIGH IDLE. */
             {
-              hid_report[3] = KEY_MINUS;
-              release       = false;
+              hid_report[3] = KEY_1;
+            }
+            else if (percentage[index] > 0) /* LOW IDLE. */
+            {
+              hid_report[3] = KEY_RIGHTBRACE;
+            }
+          }
+          else
+          {
+            if ((percentage[index] >= 70)) /* HIGH IDLE. */
+            {
+              hid_report[3] = KEY_1;
+            }
+            else if ((percentage[index] <= 30) && (percentage[index] != 0))
+            {
+              hid_report[3] = KEY_LEFTBRACE; /* LOW IDLE. */
             }
             else
             {
-              switch (setting)
-              {
-                case 35:
-                case 40:
-                  hid_report[3] = KEY_0;
-                  break;
-                case 45:
-                  hid_report[3] = KEY_1;
-                  break;
-                case 50:
-                  hid_report[3] = KEY_2;
-                  break;
-                case 55:
-                  hid_report[3] = KEY_3;
-                  break;
-                case 60:
-                  hid_report[3] = KEY_4;
-                  break;
-                case 65:
-                  hid_report[3] = KEY_5;
-                  break;
-                case 70:
-                  hid_report[3] = KEY_6;
-                  break;
-                case 75:
-                  hid_report[3] = KEY_7;
-                  break;
-                case 80:
-                  hid_report[3] = KEY_8;
-                  break;
-                case 85:
-                case 90:
-                  hid_report[3] = KEY_9;
-                  break;
-                default:
-                  send_key = false;
-                  break;
-              }
+              prev_percentage[index] = percentage[index];
+              HAL_Delay(10);
+              continue;
             }
-
-            if (true == send_key)
-            {
-              USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-              HAL_Delay(20);
-
-              /* Release keys. */
-              if (true == release)
-              {
-                for (int i = 0; i < 8; i += 1)
-                {
-                  hid_report[i] = KEY_NONE;
-                }
-                USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-              }
-            }
-            break;
-          case AXIS_MIXTURE:
-            break;
-        }
-        prev_percentage[index] = percentage[index];
+          }
+          break;
       }
 
+      if ((index == 1) ||
+          ((index == 2) && ((abs(prev_percentage[index] - percentage[index]) >= 1))))
+      {
+        USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+        HAL_Delay(20);
+
+        /* Release keys. */
+        for (int i = 0; i < 8; i += 1)
+        {
+          hid_report[i] = KEY_NONE;
+        }
+        USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+      }
+
+      prev_percentage[index] = percentage[index];
       HAL_Delay(10);
     }
   }
@@ -373,19 +409,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-static int nearest(int range, int n)
-{
-  int reminder = n % range;
-
-  if (reminder >= 5)
-  {
-    return n - reminder + range;
-  }
-  else
-  {
-    return n - reminder;
-  }
-}
 /* USER CODE END 4 */
 
 /**
