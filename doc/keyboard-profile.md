@@ -38,19 +38,19 @@
 | Autopilot          | INCREASE AUTOPILOT REFERENCE VS | `LEFT ALT` + `N`        |                   |
 | Autopilot          | DECREASE AUTOPILOT REFERENCE VS | `RIGHT ALT` + `N`       |                   |
 | Autopilot          | AUTOPILOT NAV1 HOLD             | `RIGHT ALT` + `V`       |                   |
-| Throttle           | THROTTLE CUT                    | `LEFT CTRL` + `T` + `0` |                   |
-| Throttle           | THROTTLE 90%                    | `LEFT CTRL` + `T` + `9` |                   |
-| Throttle           | THROTTLE 80%                    | `LEFT CTRL` + `T` + `8` |                   |
-| Throttle           | THROTTLE 70%                    | `LEFT CTRL` + `T` + `7` |                   |
-| Throttle           | THROTTLE 60%                    | `LEFT CTRL` + `T` + `6` |                   |
-| Throttle           | THROTTLE 50%                    | `LEFT CTRL` + `T` + `5` |                   |
-| Throttle           | THROTTLE 40%                    | `LEFT CTRL` + `T` + `4` |                   |
-| Throttle           | THROTTLE 30%                    | `LEFT CTRL` + `T` + `3` |                   |
-| Throttle           | THROTTLE 20%                    | `LEFT CTRL` + `T` + `2` |                   |
-| Throttle           | THROTTLE 10%                    | `LEFT CTRL` + `T` + `1` |                   |
-| Throttle           | INCREASE THROTTLE               | `LEFT CTRL` + `T` + `]` |                   |
-| Throttle           | FULL THROTTLE 1                 | `LEFT CTRL` + `T` + `+` |                   |
-| Throttle           | DECREASE THROTTLE               | `LEFT CTRL` + `T` + `[` |                   |
+| Throttle           | THROTTLE CUT                    | `LEFT CTRL` + `SYS_REQ` |                   |
+| Throttle           | THROTTLE 90%                    | `LEFT CTRL` + `F9`      |                   |
+| Throttle           | THROTTLE 80%                    | `LEFT CTRL` + `F8`      |                   |
+| Throttle           | THROTTLE 70%                    | `LEFT CTRL` + `F7`      |                   |
+| Throttle           | THROTTLE 60%                    | `LEFT CTRL` + `F6`      |                   |
+| Throttle           | THROTTLE 50%                    | `LEFT CTRL` + `F5`      |                   |
+| Throttle           | THROTTLE 40%                    | `LEFT CTRL` + `F4`      |                   |
+| Throttle           | THROTTLE 30%                    | `LEFT CTRL` + `F3`      |                   |
+| Throttle           | THROTTLE 20%                    | `LEFT CTRL` + `F2`      |                   |
+| Throttle           | THROTTLE 10%                    | `LEFT CTRL` + `F1`      |                   |
+| Throttle           | INCREASE THROTTLE               | `LEFT CTRL` + `F12`     |                   |
+| Throttle           | FULL THROTTLE 1                 | `LEFT CTRL` + `F10`     |                   |
+| Throttle           | DECREASE THROTTLE               | `LEFT CTRL` + `F11`     |                   |
 | Mixture            | SET MIXTURE RICH                | `LEFT_CTRL` + `M` + `1` |                   |
 | Mixture            | SET MIXTURE LEAN                | `LEFT_CTRL` + `M` + `1` |                   |
 | Mixture            | INCREASE MIXTURE                | `LEFT_CTRL` + `M` + `1` |                   |

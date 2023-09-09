@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdbool.h>
 #include <stdint.h>
+#include "ads1115.h"
 #include "display.h"
 #include "switch-panel.h"
 #include "usb_hid_keys.h"
@@ -32,6 +33,14 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef enum
+{
+  AXIS_PROP = 0,
+  AXIS_THROTTLE,
+  AXIS_MIXTURE
+
+} axis_index_t;
+
 typedef enum
 {
   FCU_KEY_AP,
@@ -55,6 +64,22 @@ typedef enum
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define PROP_LOWER_LIMIT       600
+#define PROP_CENTER          14914
+#define PROP_UPPER_LIMIT     26300
+
+#define THROTTLE_LOWER_LIMIT    10
+#define THROTTLE_CENTER      11435
+#define THROTTLE_UPPER_LIMIT 25300
+
+#define MIXTURE_LOWER_LIMIT     10
+#define MIXTURE_CENTER       13740
+#define MIXTURE_UPPER_LIMIT  26300
+
+#define HID_QUEUE_SIZE          10
+
+#define BOOTUP_DEFAULT_DELAY    10
+#define BOOTUP_DELAY             0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -64,15 +89,20 @@ typedef enum
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c2;
 
 /* USER CODE BEGIN PV */
+static uint8_t       hid_report_count = 0;
+static uint8_t       hid_report_queue[HID_QUEUE_SIZE][8];
+
 static fcu_mode      mode            = 0;
 static int32_t       altitude        = 0;
+static uint16_t      axis_data[3]    = { 0 };
 static uint32_t      disp_state      = SEG_OFF;
 static uint32_t      prev_disp_state = SEG_CLR;
 static bool          is_initialised  = false;
-static GPIO_PinState prev_rot_1_dt = GPIO_PIN_RESET;
-static GPIO_PinState prev_rot_2_dt = GPIO_PIN_RESET;
+static GPIO_PinState prev_rot_1_dt   = GPIO_PIN_RESET;
+static GPIO_PinState prev_rot_2_dt   = GPIO_PIN_RESET;
 static GPIO_PinState start_switch;
 
 /* USER CODE END PV */
@@ -81,11 +111,15 @@ static GPIO_PinState start_switch;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
+static void add_report_to_queue(uint8_t hid_report[]);
 static void handle_encoder(void);
 static void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key);
 static void handle_red_switch(void);
+static void handle_levers(void);
 static void send_report(uint8_t hid_report[]);
+static void send_report_queue(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -121,7 +155,10 @@ int main(void)
   MX_GPIO_Init();
   MX_USB_DEVICE_Init();
   MX_I2C1_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
+  ads1115_init();
+
   start_switch  = HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin);
   prev_rot_1_dt = HAL_GPIO_ReadPin(ROT_1_DT_GPIO_Port, ROT_1_DT_Pin);
   prev_rot_2_dt = HAL_GPIO_ReadPin(ROT_2_DT_GPIO_Port, ROT_2_DT_Pin);
@@ -176,7 +213,7 @@ int main(void)
               break;
             }
 
-            HAL_Delay(10);
+            HAL_Delay(BOOTUP_DELAY);
           }
         }
         for (int t = 0; t < 200; t+= 1)
@@ -195,7 +232,7 @@ int main(void)
             break;
           }
 
-          HAL_Delay(10);
+          HAL_Delay(BOOTUP_DELAY);
         }
 
         fill_display();
@@ -216,7 +253,7 @@ int main(void)
             break;
           }
 
-          HAL_Delay(10);
+          HAL_Delay(BOOTUP_DELAY);
         }
 
         mode &= ~(1UL << MODE_AP);
@@ -232,6 +269,7 @@ int main(void)
         is_initialised = true;
         handle_switch_panel();
         handle_red_switch();
+        handle_levers();
 
         switch_state  = get_switch_state();
         battery_state = (switch_state & (1U << SW_BATTERY));
@@ -256,7 +294,7 @@ int main(void)
       }
     }
 
-    HAL_Delay(10);
+    send_report_queue();
   }
   /* USER CODE END 3 */
 }
@@ -342,6 +380,40 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief I2C2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C2_Init(void)
+{
+
+  /* USER CODE BEGIN I2C2_Init 0 */
+
+  /* USER CODE END I2C2_Init 0 */
+
+  /* USER CODE BEGIN I2C2_Init 1 */
+
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.ClockSpeed = 400000;
+  hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c2.Init.OwnAddress1 = 0;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C2_Init 2 */
+
+  /* USER CODE END I2C2_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -358,7 +430,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, DISP_2_CLK_Pin|DISP_2_DIO_Pin|DISP_1_CLK_Pin|DISP_1_DIO_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, DISP_2_CLK_Pin|DISP_2_DIO_Pin|DISP_1_DIO_Pin|DISP_1_CLK_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : SL1_Pin SL2_Pin SL3_Pin SL4_Pin
                            SL5_Pin SL6_Pin ROT_1_CLK_Pin ROT_1_DT_Pin */
@@ -368,8 +440,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : DISP_2_CLK_Pin DISP_2_DIO_Pin DISP_1_CLK_Pin DISP_1_DIO_Pin */
-  GPIO_InitStruct.Pin = DISP_2_CLK_Pin|DISP_2_DIO_Pin|DISP_1_CLK_Pin|DISP_1_DIO_Pin;
+  /*Configure GPIO pins : DISP_2_CLK_Pin DISP_2_DIO_Pin DISP_1_DIO_Pin DISP_1_CLK_Pin */
+  GPIO_InitStruct.Pin = DISP_2_CLK_Pin|DISP_2_DIO_Pin|DISP_1_DIO_Pin|DISP_1_CLK_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -392,6 +464,21 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static void add_report_to_queue(uint8_t hid_report[])
+{
+  if (hid_report_count > HID_QUEUE_SIZE)
+  {
+    hid_report_count = 0;
+  }
+
+  for (int i = 0; i < 8; i += 1)
+  {
+    hid_report_queue[hid_report_count][i] = hid_report[i];
+  }
+
+  hid_report_count += 1;
+}
+
 static void handle_encoder(void)
 {
   static int32_t heading_queue       = 0;
@@ -435,7 +522,8 @@ static void handle_encoder(void)
       altitude += 100;
     }
 
-    send_report(hid_report);
+    add_report_to_queue(hid_report);
+    //send_report(hid_report);
     set_display(disp_state, altitude);
   }
 
@@ -494,7 +582,7 @@ static void handle_encoder(void)
       heading_queue -= 1;
     }
 
-    send_report(hid_report);
+    add_report_to_queue(hid_report);
   }
 
   prev_rot_1_dt = rot_1_dt;
@@ -620,7 +708,7 @@ static void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key
       sync_mode_state = (get_switch_state() & (1U << SW_SYNC_MODE));
       if (sync_mode_state != 0)
       {
-        send_report(hid_report);
+        add_report_to_queue(hid_report);
       }
     }
 
@@ -647,9 +735,189 @@ static void handle_red_switch(void)
     hid_report[0] = KEY_MOD_LALT;
     hid_report[2] = KEY_M;
 
-    send_report(hid_report);
+    add_report_to_queue(hid_report);
 
     start_switch = HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin);
+  }
+}
+
+static void handle_levers(void)
+{
+  uint8_t hid_report[8] = { 0 };
+
+  for (axis_index_t index = 0; index <= AXIS_MIXTURE; index += 1)
+  {
+    static int64_t prev_percentage[3] = { 50, 50, 50 };
+
+    uint8_t channel;
+    int16_t lower_limit;
+    int16_t center;
+    int16_t upper_limit;
+    int64_t percentage[3];
+
+    switch (index)
+    {
+      case AXIS_PROP:
+        channel     = AXIS_THROTTLE;
+        lower_limit = PROP_LOWER_LIMIT;
+        center      = PROP_CENTER;
+        upper_limit = PROP_UPPER_LIMIT;
+        break;
+      case AXIS_THROTTLE:
+        channel     = AXIS_MIXTURE;
+        lower_limit = THROTTLE_LOWER_LIMIT;
+        center      = THROTTLE_CENTER;
+        upper_limit = THROTTLE_UPPER_LIMIT;
+        break;
+      case AXIS_MIXTURE:
+        channel     = AXIS_PROP;
+        lower_limit = MIXTURE_LOWER_LIMIT;
+        center      = MIXTURE_CENTER;
+        upper_limit = MIXTURE_UPPER_LIMIT;
+        break;
+    }
+
+    ads1115_read((int16_t*)&axis_data[index], lower_limit, upper_limit);
+    ads1115_set_channel(channel);
+
+    if (axis_data[index] <= center)
+    {
+      percentage[index] = (50ULL * axis_data[index] + (center - lower_limit) / 2) / (center - lower_limit);
+
+      if (percentage[index] > 50)
+      {
+        percentage[index] = 50;
+      }
+    }
+    else
+    {
+      percentage[index] = (100ULL * axis_data[index] + (upper_limit - lower_limit) / 2) / (upper_limit - lower_limit);
+
+      if (percentage[index] < 51)
+      {
+        percentage[index] = 51;
+      }
+    }
+
+    if (percentage[index] > 100)
+    {
+      percentage[index] = 100;
+    }
+    else if (percentage[index] < 0)
+    {
+      percentage[index] = 0;
+    }
+
+    hid_report[0] = KEY_MOD_LCTRL;
+
+    switch (index)
+    {
+      case AXIS_PROP:
+        break;
+      case AXIS_THROTTLE:
+
+        switch (percentage[index])
+        {
+          case 36:
+          case 37:
+          case 38:
+          case 39:
+          case 40:
+            hid_report[2] = KEY_SYSRQ;
+            break;
+          case 45:
+            hid_report[2] = KEY_F1;
+            break;
+          case 50:
+            hid_report[2] = KEY_F2;
+            break;
+          case 55:
+            hid_report[2] = KEY_F3;
+            break;
+          case 60:
+            hid_report[2] = KEY_F4;
+            break;
+          case 65:
+            hid_report[2] = KEY_F5;
+            break;
+          case 70:
+            hid_report[2] = KEY_F6;
+            break;
+          case 75:
+            hid_report[2] = KEY_F7;
+            break;
+          case 80:
+            hid_report[2] = KEY_F8;
+            break;
+          case 90:
+            hid_report[2] = KEY_F9;
+          case 100:
+            hid_report[2] = KEY_F10;
+            break;
+          default:
+            if ((prev_percentage[index] < percentage[index]))
+            {
+              hid_report[2] = KEY_F12;
+            }
+            else if ((prev_percentage[index] > percentage[index]) || (0 == prev_percentage[index] && 0 == percentage[index]))
+            {
+              hid_report[2] = KEY_F11;
+            }
+            else
+            {
+              prev_percentage[index] = percentage[index];
+              continue;
+            }
+            break;
+        }
+        break;
+
+      case AXIS_MIXTURE:
+        hid_report[2] = KEY_M;
+
+        if (percentage[index] == 0) /* CUT OFF. */
+        {
+          hid_report[3] = KEY_0;
+        }
+        else if (prev_percentage[index] == 0) /* Transition from CUT OFF. */
+        {
+          if (percentage[index] >= 70) /* HIGH IDLE. */
+          {
+            hid_report[3] = KEY_1;
+          }
+          else if (percentage[index] > 0) /* LOW IDLE. */
+          {
+            hid_report[3] = KEY_RIGHTBRACE;
+          }
+        }
+        else
+        {
+          if ((percentage[index] >= 70)) /* HIGH IDLE. */
+          {
+            hid_report[3] = KEY_1;
+          }
+          else if ((percentage[index] <= 30) && (percentage[index] != 0))
+          {
+            hid_report[3] = KEY_LEFTBRACE; /* LOW IDLE. */
+          }
+          else
+          {
+            prev_percentage[index] = percentage[index];
+            continue;
+          }
+        }
+        break;
+    }
+
+    if (
+        ((abs(prev_percentage[index] - percentage[index]) >= 1) && (index == 1)) ||
+        ((percentage[index] == 0) && (index == 1))
+      )
+    {
+      add_report_to_queue(hid_report);
+    }
+
+    prev_percentage[index] = percentage[index];
   }
 }
 
@@ -666,6 +934,31 @@ static void send_report(uint8_t hid_report[])
     hid_report[i] = KEY_NONE;
   }
   USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+  HAL_Delay(10);
+}
+
+static void send_report_queue(void)
+{
+  extern USBD_HandleTypeDef hUsbDeviceFS;
+
+  if (0 == hid_report_count)
+  {
+    return;
+  }
+
+  for (int n = 0; n < hid_report_count; n += 1)
+  {
+    uint8_t hid_report[8];
+
+    for (int i = 0; i < 8; i += 1)
+    {
+      hid_report[i] = hid_report_queue[n][i];
+    }
+
+    send_report(hid_report);
+  }
+
+  hid_report_count = 0;
 }
 /* USER CODE END 4 */
 

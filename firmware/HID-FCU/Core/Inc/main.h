@@ -77,10 +77,6 @@ void Error_Handler(void);
 #define DISP_2_CLK_GPIO_Port GPIOB
 #define DISP_2_DIO_Pin GPIO_PIN_1
 #define DISP_2_DIO_GPIO_Port GPIOB
-#define DISP_1_CLK_Pin GPIO_PIN_10
-#define DISP_1_CLK_GPIO_Port GPIOB
-#define DISP_1_DIO_Pin GPIO_PIN_11
-#define DISP_1_DIO_GPIO_Port GPIOB
 #define ROT_2_SW_Pin GPIO_PIN_12
 #define ROT_2_SW_GPIO_Port GPIOB
 #define ROT_2_CLK_Pin GPIO_PIN_13
@@ -95,6 +91,10 @@ void Error_Handler(void);
 #define ROT_1_DT_GPIO_Port GPIOA
 #define START_SWITCH_Pin GPIO_PIN_10
 #define START_SWITCH_GPIO_Port GPIOA
+#define DISP_1_DIO_Pin GPIO_PIN_4
+#define DISP_1_DIO_GPIO_Port GPIOB
+#define DISP_1_CLK_Pin GPIO_PIN_5
+#define DISP_1_CLK_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 /* USER CODE END Private defines */

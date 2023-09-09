@@ -173,75 +173,7 @@ void tm1637_write_int(tm1637_t *tm1637, int32_t digit, uint8_t pos)
   tm1637_write_raw(tm1637, buffer, 6, pos);              
   tm1637_unlock(tm1637);  
 }
-//#######################################################################################################################
-void tm1637_write_float(tm1637_t *tm1637, float digit, uint8_t floating_digit, uint8_t pos)
-{
-  tm1637_lock(tm1637);
-  char str[8];
-  uint8_t buffer[6] = {0};
-  if (floating_digit >6)
-    floating_digit = 6;
-  switch (floating_digit)
-  {
-    case 0:
-      snprintf(str, sizeof(str) , "%.0f", digit);
-    break;
-    case 1:
-      snprintf(str, sizeof(str) , "%.1f", digit);
-    break;
-    case 2:
-      snprintf(str, sizeof(str) , "%.2f", digit);
-    break;
-    case 3:
-      snprintf(str, sizeof(str) , "%.3f", digit);
-    break;
-    case 4:
-      snprintf(str, sizeof(str) , "%.4f", digit);
-    break;
-    case 5:
-      snprintf(str, sizeof(str) , "%.5f", digit);
-    break;
-    case 6:
-      snprintf(str, sizeof(str) + 1, "%.6f", digit);
-    break;
-  } 
-  if (tm1637->show_zero == false)
-  {
-    for (int8_t i = strlen(str) - 1; i > 0; i--)
-    {
-      if (str[i] == '0')
-        str[i] = 0;
-      else
-        break;            
-    }
-  }
-  uint8_t index = 0;  
-  for (uint8_t i=0; i < 7; i++)
-  {
-    if (str[i] == '-')
-    {
-      buffer[index] = _tm1637_minus;
-      index++;
-    }
-    else if((str[i] >= '0') && (str[i] <= '9'))
-    {
-      buffer[index] = _tm1637_digit[str[i] - 48];
-      index++;
-    }
-    else if (str[i] == '.')
-    {
-      if (index > 0)
-        buffer[index - 1] |= _tm1637_dot;      
-    }
-    else
-    {
-      buffer[index] = 0;
-      break;
-    }
-  }
-  tm1637_write_raw(tm1637, buffer, 6, pos);              
-  tm1637_unlock(tm1637);  
-}
+
 //#######################################################################################################################
 void tm1637_show_zero(tm1637_t *tm1637, bool enable)
 {
