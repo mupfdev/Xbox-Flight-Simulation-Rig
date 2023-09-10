@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include "ads1115.h"
 #include "display.h"
 #include "switch-panel.h"
@@ -76,13 +77,7 @@ typedef enum
 #define MIXTURE_CENTER       13740
 #define MIXTURE_UPPER_LIMIT  26300
 
-#define HID_QUEUE_SIZE          10
-
-#if defined DEBUG == 1
-#  define BOOTUP_DELAY           0
-#else
-#  define BOOTUP_DELAY          10
-#endif
+#define HID_FIFO_QUEUE_SIZE     20
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -95,8 +90,8 @@ I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 
 /* USER CODE BEGIN PV */
-static uint8_t       hid_report_count = 0;
-static uint8_t       hid_report_queue[HID_QUEUE_SIZE][8];
+static uint8_t       hid_report_fifo_queue_index = 0;
+static uint8_t       hid_report_fifo_queue[HID_FIFO_QUEUE_SIZE][8] = {{ 0x00 }};
 
 static fcu_mode      mode            = 0;
 static int32_t       altitude        = 0;
@@ -116,13 +111,13 @@ static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
-static void add_report_to_queue(uint8_t hid_report[]);
+static void add_report_to_fifo_queue(uint8_t hid_report[]);
 static void handle_encoder(void);
 static void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key);
 static void handle_red_switch(void);
 static void handle_levers(void);
 static void send_report(uint8_t hid_report[]);
-static void send_report_queue(void);
+static void send_fifo_queue_item(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -136,7 +131,8 @@ static void send_report_queue(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  fcu_state state = STATE_OFF;
+  fcu_state state        = STATE_OFF;
+  uint32_t  bootup_delay = 10;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -161,6 +157,7 @@ int main(void)
   MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
   ads1115_init();
+  memset(hid_report_fifo_queue, 0, sizeof(hid_report_fifo_queue));
 
   start_switch  = HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin);
   prev_rot_1_dt = HAL_GPIO_ReadPin(ROT_1_DT_GPIO_Port, ROT_1_DT_Pin);
@@ -189,6 +186,11 @@ int main(void)
         battery_state = (switch_state & (1U << SW_BATTERY));
         av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
 
+        if (0 == (switch_state & (1U << SW_SYNC_MODE)))
+        {
+          bootup_delay = 0;
+        }
+
         if (0 == battery_state && 0 == av_bus2_state)
         {
           state = STATE_AVIONICS_BUS2_BOOTUP;
@@ -216,7 +218,7 @@ int main(void)
               break;
             }
 
-            HAL_Delay(BOOTUP_DELAY);
+            HAL_Delay(bootup_delay);
           }
         }
         for (int t = 0; t < 200; t+= 1)
@@ -235,7 +237,7 @@ int main(void)
             break;
           }
 
-          HAL_Delay(BOOTUP_DELAY);
+          HAL_Delay(bootup_delay);
         }
 
         fill_display();
@@ -256,7 +258,7 @@ int main(void)
             break;
           }
 
-          HAL_Delay(BOOTUP_DELAY);
+          HAL_Delay(bootup_delay);
         }
 
         mode &= ~(1UL << MODE_AP);
@@ -297,7 +299,7 @@ int main(void)
       }
     }
 
-    send_report_queue();
+    send_fifo_queue_item();
   }
   /* USER CODE END 3 */
 }
@@ -467,19 +469,19 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-static void add_report_to_queue(uint8_t hid_report[])
+static void add_report_to_fifo_queue(uint8_t hid_report[])
 {
-  if (hid_report_count > HID_QUEUE_SIZE)
+  if (hid_report_fifo_queue_index > HID_FIFO_QUEUE_SIZE)
   {
-    hid_report_count = 0;
+    hid_report_fifo_queue_index = 0;
   }
 
   for (int i = 0; i < 8; i += 1)
   {
-    hid_report_queue[hid_report_count][i] = hid_report[i];
+    hid_report_fifo_queue[hid_report_fifo_queue_index][i] = hid_report[i];
   }
 
-  hid_report_count += 1;
+  hid_report_fifo_queue_index += 1;
 }
 
 static void handle_encoder(void)
@@ -525,8 +527,7 @@ static void handle_encoder(void)
       altitude += 100;
     }
 
-    add_report_to_queue(hid_report);
-    //send_report(hid_report);
+    add_report_to_fifo_queue(hid_report);
     set_display(disp_state, altitude);
   }
 
@@ -585,7 +586,7 @@ static void handle_encoder(void)
       heading_queue -= 1;
     }
 
-    add_report_to_queue(hid_report);
+    add_report_to_fifo_queue(hid_report);
   }
 
   prev_rot_1_dt = rot_1_dt;
@@ -711,7 +712,7 @@ static void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key
       sync_mode_state = (get_switch_state() & (1U << SW_SYNC_MODE));
       if (sync_mode_state != 0)
       {
-        add_report_to_queue(hid_report);
+        add_report_to_fifo_queue(hid_report);
       }
     }
 
@@ -738,7 +739,7 @@ static void handle_red_switch(void)
     hid_report[0] = KEY_MOD_LALT;
     hid_report[2] = KEY_M;
 
-    add_report_to_queue(hid_report);
+    add_report_to_fifo_queue(hid_report);
 
     start_switch = HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin);
   }
@@ -813,6 +814,17 @@ static void handle_levers(void)
 
     hid_report[0] = KEY_MOD_LCTRL;
 
+    if (((abs(prev_percentage[index] - percentage[index]) >= 1) && (index == 1)) ||
+        ((percentage[index] == 0) && (index == 1)))
+    {
+      /* Nothing to do here. */
+    }
+    else
+    {
+      prev_percentage[index] = percentage[index];
+      continue;
+    }
+
     switch (index)
     {
       case AXIS_PROP:
@@ -858,11 +870,11 @@ static void handle_levers(void)
             hid_report[2] = KEY_F10;
             break;
           default:
-            if ((prev_percentage[index] < percentage[index]))
+            if (prev_percentage[index] < percentage[index])
             {
               hid_report[2] = KEY_F12;
             }
-            else if ((prev_percentage[index] > percentage[index]) || (0 == prev_percentage[index] && 0 == percentage[index]))
+            else if ((prev_percentage[index] > percentage[index]))
             {
               hid_report[2] = KEY_F11;
             }
@@ -912,13 +924,15 @@ static void handle_levers(void)
         break;
     }
 
-    if (
-        ((abs(prev_percentage[index] - percentage[index]) >= 1) && (index == 1)) ||
-        ((percentage[index] == 0) && (index == 1))
-      )
+#if 0
+    if (((abs(prev_percentage[index] - percentage[index]) >= 1) && (index == 1)) ||
+        ((percentage[index] == 0) && (index == 1)))
     {
-      add_report_to_queue(hid_report);
+#endif
+      add_report_to_fifo_queue(hid_report);
+#if 0
     }
+#endif
 
     prev_percentage[index] = percentage[index];
   }
@@ -940,30 +954,41 @@ static void send_report(uint8_t hid_report[])
   HAL_Delay(10);
 }
 
-// TODO: FIFO QUEUE!
-
-static void send_report_queue(void)
+static void send_fifo_queue_item(void)
 {
   extern USBD_HandleTypeDef hUsbDeviceFS;
 
-  if (0 == hid_report_count)
-  {
-    return;
-  }
+  uint8_t hid_report[8];
+  int     first_valid_item;
+  bool    valid_item_found = false;
 
-  for (int n = 0; n < hid_report_count; n += 1)
+  for (first_valid_item = 0; first_valid_item < HID_FIFO_QUEUE_SIZE; first_valid_item += 1)
   {
-    uint8_t hid_report[8];
-
     for (int i = 0; i < 8; i += 1)
     {
-      hid_report[i] = hid_report_queue[n][i];
+      hid_report[i] = hid_report_fifo_queue[first_valid_item][i];
+      if (hid_report[i] != 0x00)
+      {
+        valid_item_found = true;
+      }
     }
 
-    send_report(hid_report);
+    if (true == valid_item_found)
+    {
+      break;
+    }
   }
 
-  hid_report_count = 0;
+  if (true == valid_item_found)
+  {
+    send_report(hid_report);
+
+    /* Clear last valid item. */
+    for (int i = 0; i < 8; i += 1)
+    {
+      hid_report_fifo_queue[first_valid_item][i] = 0x00;
+    }
+  }
 }
 /* USER CODE END 4 */
 
