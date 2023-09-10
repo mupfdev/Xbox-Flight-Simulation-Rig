@@ -78,8 +78,11 @@ typedef enum
 
 #define HID_QUEUE_SIZE          10
 
-#define BOOTUP_DEFAULT_DELAY    10
-#define BOOTUP_DELAY             0
+#if defined DEBUG == 1
+#  define BOOTUP_DELAY           0
+#else
+#  define BOOTUP_DELAY          10
+#endif
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -936,6 +939,8 @@ static void send_report(uint8_t hid_report[])
   USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
   HAL_Delay(10);
 }
+
+// TODO: FIFO QUEUE!
 
 static void send_report_queue(void)
 {
