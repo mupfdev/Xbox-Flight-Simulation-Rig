@@ -93,16 +93,39 @@ static void send_switch_event(switch_event event);
 
 void handle_switch_panel(void)
 {
+  uint32_t sync_mode_state;
+  uint32_t prev_sync_mode_state;
+
   poll_switch_panel();
 
-  for (int n = 0; n < 32; n = n + 1)
+  sync_mode_state      = (switch_state      & (1U << SW_SYNC_MODE));
+  prev_sync_mode_state = (prev_switch_state & (1U << SW_SYNC_MODE));
+
+  if (prev_sync_mode_state != sync_mode_state)
   {
-    uint32_t bit_state      = (switch_state & (1U << n));
-    uint32_t prev_bit_state = (prev_switch_state & (1U << n));
+    if (sync_mode_state > 0) /* OFF */
+    {
+      send_switch_event(SW_SYNC_MODE_OFF);
+    }
+    else
+    {
+      send_switch_event(SW_SYNC_MODE_ON);
+    }
+  }
+
+  if (sync_mode_state == 0)
+  {
+    return;
+  }
+
+  for (switch_id id = 0; id < SW_SYNC_MODE; id = id + 1)
+  {
+    uint32_t bit_state      = (switch_state & (1U << id));
+    uint32_t prev_bit_state = (prev_switch_state & (1U << id));
 
     if (bit_state != prev_bit_state)
     {
-      switch (n)
+      switch (id)
       {
         case SW_BATTERY:
           if (bit_state > 0) /* OFF */
@@ -427,15 +450,6 @@ void handle_switch_panel(void)
           }
           break;
         case SW_SYNC_MODE:
-          if (bit_state > 0) /* OFF */
-          {
-            send_switch_event(SW_SYNC_MODE_OFF);
-          }
-          else
-          {
-            send_switch_event(SW_SYNC_MODE_ON);
-          }
-          break;
         default:
           break;
       }

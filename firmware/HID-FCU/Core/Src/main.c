@@ -77,7 +77,7 @@ typedef enum
 #define MIXTURE_CENTER       13740
 #define MIXTURE_UPPER_LIMIT  26300
 
-#define HID_FIFO_QUEUE_SIZE     20
+#define HID_FIFO_QUEUE_SIZE    100
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -814,8 +814,8 @@ static void handle_levers(void)
 
     hid_report[0] = KEY_MOD_LCTRL;
 
-    if (((abs(prev_percentage[index] - percentage[index]) >= 1) && (index == 1)) ||
-        ((percentage[index] == 0) && (index == 1)))
+    if (((abs(prev_percentage[index] - percentage[index]) >= AXIS_THROTTLE) && (index == AXIS_THROTTLE)) ||
+        ((percentage[index] == 0) && (index == AXIS_THROTTLE)))
     {
       /* Nothing to do here. */
     }
@@ -951,6 +951,7 @@ static void send_report(uint8_t hid_report[])
     hid_report[i] = KEY_NONE;
   }
   USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
+
   HAL_Delay(10);
 }
 

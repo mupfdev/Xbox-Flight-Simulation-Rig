@@ -6,7 +6,7 @@
 | Miscellaneous      | MINUS                           | `-`                     |                   |
 | Fuel               | TOGGLE ENGINE 1 FUEL VALVE      | `RIGHT ALT` + `3`       | `RIGHT ALT`+ `4`  |
 | Flight Instruments | SET ALTIMETER                   | `LEFT ALT` + `M`        |                   |
-| Flight Instruments | SELECT ALTITUDE BUG             | `LEFT ALT` + `B`        |                   |
+| Flight Instruments | SELECT ALTITUDE BUG             | `RIGHT ALT` + `B`       |                   |
 | Flight Instruments | INCREASE HEADING BUG            | `]`                     |                   |
 | Flight Instruments | DECREASE HEADING BUG            | `[`                     |                   |
 | Flight Instruments | AVIONICS MASTER 2 ON            | `LEFT ALT` + `Q`        |                   |
@@ -31,8 +31,8 @@
 | Interior Lights    | PANEL LIGHTS OFF                | `LEFT ALT` + `H`        |                   |
 | Interior Lights    | CABIN LIGHTS ON                 | `LEFT ALT` + `J`        |                   |
 | Interior Lights    | CABIN LIGHTS OFF                | `LEFT ALT` + `K`        |                   |
-| Autopilot          | TOGGLE AUTOPILOT MASTER         | `LEFT ALT` + `V`        |                   |
 | Brakes             | TOGGLE PARKING BRAKES           | `RIGHT ALT` + `1`       | `RIGHT ALT` + `2` |
+| Autopilot          | TOGGLE AUTOPILOT MASTER         | `LEFT ALT` + `V`        |                   |
 | Autopilot          | TOGGLE AUTOPILOT HEADING HOLD   | `LEFT ALT` + `B`        |                   |
 | Autopilot          | TOGGLE AUTOPILOT ALTITUDE HOLD  | `RIGHT ALT` + `B`       |                   |
 | Autopilot          | INCREASE AUTOPILOT REFERENCE VS | `LEFT ALT` + `N`        |                   |
@@ -51,13 +51,13 @@
 | Throttle           | INCREASE THROTTLE               | `LEFT CTRL` + `F12`     |                   |
 | Throttle           | FULL THROTTLE 1                 | `LEFT CTRL` + `F10`     |                   |
 | Throttle           | DECREASE THROTTLE               | `LEFT CTRL` + `F11`     |                   |
-| Mixture            | SET MIXTURE RICH                | `LEFT_CTRL` + `M` + `1` |                   |
-| Mixture            | SET MIXTURE LEAN                | `LEFT_CTRL` + `M` + `1` |                   |
-| Mixture            | INCREASE MIXTURE                | `LEFT_CTRL` + `M` + `1` |                   |
-| Mixture            | DECREASE MIXTURE                | `LEFT_CTRL` + `M` + `1` |                   |
-| Propeller          | TOGGLE PROPELLER REVERSE THRUST | `LEFT CTRL` + `P` + `-` |                   |
-| Propeller          | PROPELLER PITCH LO              | `LEFT CTRL` + `P` + `2` |                   |
-| Propeller          | PROPELLER PITCH HI              | `LEFT CTRL` + `P` + `1` |                   |
-| Propeller          | INCREASE PROPELLER PITCH        | `LEFT CTRL` + `P` + `]` |                   |
-| Propeller          | DECREASE PROPELLER PITCH        | `LEFT CTRL` + `P` + `[` |                   |
+| Mixture            | SET MIXTURE RICH                |                         |                   |
+| Mixture            | SET MIXTURE LEAN                |                         |                   |
+| Mixture            | INCREASE MIXTURE                |                         |                   |
+| Mixture            | DECREASE MIXTURE                |                         |                   |
+| Propeller          | TOGGLE PROPELLER REVERSE THRUST |                         |                   |
+| Propeller          | PROPELLER PITCH LO              |                         |                   |
+| Propeller          | PROPELLER PITCH HI              |                         |                   |
+| Propeller          | INCREASE PROPELLER PITCH        |                         |                   |
+| Propeller          | DECREASE PROPELLER PITCH        |                         |                   |
 | Landing Gear       | TOGGLE TAIL WHEEL LOCK          | `RIGHT ALT` + `5`       | `RIGHT ALT` + `6` |
