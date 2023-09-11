@@ -812,8 +812,6 @@ static void handle_levers(void)
       percentage[index] = 0;
     }
 
-    hid_report[0] = KEY_MOD_LCTRL;
-
     if (((abs(prev_percentage[index] - percentage[index]) >= AXIS_THROTTLE) && (index == AXIS_THROTTLE)) ||
         ((percentage[index] == 0) && (index == AXIS_THROTTLE)))
     {
@@ -830,11 +828,10 @@ static void handle_levers(void)
       case AXIS_PROP:
         break;
       case AXIS_THROTTLE:
+        hid_report[0] = KEY_MOD_LCTRL;
 
         switch (percentage[index])
         {
-          case 36:
-          case 37:
           case 38:
           case 39:
           case 40:
@@ -924,15 +921,7 @@ static void handle_levers(void)
         break;
     }
 
-#if 0
-    if (((abs(prev_percentage[index] - percentage[index]) >= 1) && (index == 1)) ||
-        ((percentage[index] == 0) && (index == 1)))
-    {
-#endif
-      add_report_to_fifo_queue(hid_report);
-#if 0
-    }
-#endif
+    add_report_to_fifo_queue(hid_report);
 
     prev_percentage[index] = percentage[index];
   }
