@@ -30,6 +30,7 @@ void fill_display(void)
 void set_display(uint32_t state, int32_t altitude)
 {
   static bool is_initialised = false;
+
   uint8_t seg[4]     = { 0 };
   uint8_t seg_alt[4] = { 0 };
 	uint8_t pos;

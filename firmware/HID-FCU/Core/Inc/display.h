@@ -5,8 +5,8 @@
  *      Author: Michael Fitzmayer
  */
 
-#ifndef INC_DISPLAY_H_
-#define INC_DISPLAY_H_
+#ifndef DISPLAY_H
+#define DISPLAY_H
 
 #include <stdint.h>
 
@@ -30,8 +30,8 @@
 #define DIGIT_8 0x7f
 #define DIGIT_9 0x6f
 
-void clear_display(void);
-void fill_display(void);
-void set_display(uint32_t state, int32_t altitude);
+void     clear_display(void);
+void     fill_display(void);
+void     set_display(uint32_t state, int32_t altitude);
 
-#endif /* INC_DISPLAY_H_ */
+#endif /* DISPLAY_H */

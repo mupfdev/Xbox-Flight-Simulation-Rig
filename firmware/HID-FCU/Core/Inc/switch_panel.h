@@ -1,12 +1,12 @@
 /*
- * switch-panel.h
+ * switch_panel.h
  *
  *  Created on: Aug 16, 2023
  *      Author: Michael Fitzmayer
  */
 
-#ifndef INC_SWITCH_PANEL_H_
-#define INC_SWITCH_PANEL_H_
+#ifndef SWITCH_PANEL_H
+#define SWITCH_PANEL_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -48,7 +48,7 @@ typedef enum
 
 } switch_id;
 
-void     handle_switch_panel(void);
+void     init_switch_panel(void);
 uint32_t get_switch_state(void);
 
-#endif /* INC_SWITCH_PANEL_H_ */
+#endif /* SWITCH_PANEL_H */

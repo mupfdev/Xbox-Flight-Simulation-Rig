@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -25,59 +26,21 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include "ads1115.h"
+
+#include "autopilot.h"
 #include "display.h"
-#include "switch-panel.h"
-#include "usb_hid_keys.h"
-#include "usbd_hid.h"
+#include "levers.h"
+#include "state_handler.h"
+#include "switch_panel.h"
+#include "usb_hid_handler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef enum
-{
-  AXIS_PROP = 0,
-  AXIS_THROTTLE,
-  AXIS_MIXTURE
-
-} axis_index_t;
-
-typedef enum
-{
-  FCU_KEY_AP,
-  FCU_KEY_HDG,
-  FCU_KEY_UP,
-  FCU_KEY_NAV,
-  FCU_KEY_ALT,
-  FCU_KEY_DOWN
-
-} fcu_key;
-
-typedef enum
-{
-  MODE_AP,       /* 0 = OFF, 1 = ON  */
-  MODE_NAV,      /* 0 = OFF, 1 = ON  */
-  MODE_LATERAL,  /* 0 = ROL, 1 = HDG */
-  MODE_VERTICAL, /* 0 = VS,  1 = ALT */
-
-} fcu_mode;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define PROP_LOWER_LIMIT       600
-#define PROP_CENTER          14914
-#define PROP_UPPER_LIMIT     26300
-
-#define THROTTLE_LOWER_LIMIT    10
-#define THROTTLE_CENTER      11435
-#define THROTTLE_UPPER_LIMIT 25300
-
-#define MIXTURE_LOWER_LIMIT     10
-#define MIXTURE_CENTER       13740
-#define MIXTURE_UPPER_LIMIT  26300
-
-#define HID_FIFO_QUEUE_SIZE    100
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -89,20 +52,14 @@ typedef enum
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
-static uint8_t       hid_report_fifo_queue_index = 0;
-static uint8_t       hid_report_fifo_queue[HID_FIFO_QUEUE_SIZE][8] = {{ 0x00 }};
-
-static fcu_mode      mode            = 0;
-static int32_t       altitude        = 0;
-static uint16_t      axis_data[3]    = { 0 };
-static uint32_t      disp_state      = SEG_OFF;
-static uint32_t      prev_disp_state = SEG_CLR;
-static bool          is_initialised  = false;
-static GPIO_PinState prev_rot_1_dt   = GPIO_PIN_RESET;
-static GPIO_PinState prev_rot_2_dt   = GPIO_PIN_RESET;
-static GPIO_PinState start_switch;
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -110,14 +67,9 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
+void StartDefaultTask(void *argument);
+
 /* USER CODE BEGIN PFP */
-static void add_report_to_fifo_queue(uint8_t hid_report[]);
-static void handle_encoder(void);
-static void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key);
-static void handle_red_switch(void);
-static void handle_levers(void);
-static void send_report(uint8_t hid_report[]);
-static void send_fifo_queue_item(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -131,8 +83,6 @@ static void send_fifo_queue_item(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  fcu_state state        = STATE_OFF;
-  uint32_t  bootup_delay = 10;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -152,154 +102,52 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USB_DEVICE_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
-  ads1115_init();
-  memset(hid_report_fifo_queue, 0, sizeof(hid_report_fifo_queue));
-
-  start_switch  = HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin);
-  prev_rot_1_dt = HAL_GPIO_ReadPin(ROT_1_DT_GPIO_Port, ROT_1_DT_Pin);
-  prev_rot_2_dt = HAL_GPIO_ReadPin(ROT_2_DT_GPIO_Port, ROT_2_DT_Pin);
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    uint32_t battery_state;
-    uint32_t av_bus2_state;
-    uint32_t switch_state;
+  while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    switch (state)
-    {
-      case STATE_OFF:
-      {
-        is_initialised = false;
-        handle_switch_panel();
-        handle_red_switch();
-
-        switch_state  = get_switch_state();
-        battery_state = (switch_state & (1U << SW_BATTERY));
-        av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
-
-        if (0 == (switch_state & (1U << SW_SYNC_MODE)))
-        {
-          bootup_delay = 0;
-        }
-
-        if (0 == battery_state && 0 == av_bus2_state)
-        {
-          state = STATE_AVIONICS_BUS2_BOOTUP;
-        }
-        break;
-      }
-      case STATE_AVIONICS_BUS2_BOOTUP:
-      {
-        for (int c = 1; c <= 4; c+= 1)
-        {
-          set_display(SEG_PFT, c);
-          for (int t = 0; t < 180; t+= 1)
-          {
-            handle_switch_panel();
-            handle_red_switch();
-
-            switch_state  = get_switch_state();
-            battery_state = (switch_state & (1U << SW_BATTERY));
-            av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
-
-            if (battery_state > 0 || av_bus2_state > 0)
-            {
-              state = STATE_OFF;
-              clear_display();
-              break;
-            }
-
-            HAL_Delay(bootup_delay);
-          }
-        }
-        for (int t = 0; t < 200; t+= 1)
-        {
-          handle_switch_panel();
-          handle_red_switch();
-
-          switch_state  = get_switch_state();
-          battery_state = (switch_state & (1U << SW_BATTERY));
-          av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
-
-          if (battery_state > 0 || av_bus2_state > 0)
-          {
-            state = STATE_OFF;
-            clear_display();
-            break;
-          }
-
-          HAL_Delay(bootup_delay);
-        }
-
-        fill_display();
-
-        for (int t = 0; t < 400; t+= 1)
-        {
-          handle_switch_panel();
-          handle_red_switch();
-
-          switch_state  = get_switch_state();
-          battery_state = (switch_state & (1U << SW_BATTERY));
-          av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
-
-          if (battery_state > 0 || av_bus2_state > 0)
-          {
-            state = STATE_OFF;
-            clear_display();
-            break;
-          }
-
-          HAL_Delay(bootup_delay);
-        }
-
-        mode &= ~(1UL << MODE_AP);
-        state = STATE_READY;
-
-        clear_display();
-        prev_disp_state = ! disp_state; /* Hack. */
-
-        break;
-      }
-      case STATE_READY:
-      {
-        is_initialised = true;
-        handle_switch_panel();
-        handle_red_switch();
-        handle_levers();
-
-        switch_state  = get_switch_state();
-        battery_state = (switch_state & (1U << SW_BATTERY));
-        av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
-
-        if (battery_state > 0 || av_bus2_state > 0)
-        {
-          state = STATE_OFF;
-          clear_display();
-        }
-        else
-        {
-          handle_encoder();
-          handle_key(SL1_GPIO_Port, SL1_Pin, FCU_KEY_AP);
-          handle_key(SL2_GPIO_Port, SL2_Pin, FCU_KEY_HDG);
-          handle_key(SL3_GPIO_Port, SL3_Pin, FCU_KEY_UP);
-          handle_key(SL4_GPIO_Port, SL4_Pin, FCU_KEY_NAV);
-          handle_key(SL5_GPIO_Port, SL5_Pin, FCU_KEY_ALT);
-          handle_key(SL6_GPIO_Port, SL6_Pin, FCU_KEY_DOWN);
-        }
-        break;
-      }
-    }
-
-    send_fifo_queue_item();
   }
   /* USER CODE END 3 */
 }
@@ -458,529 +306,160 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : START_SWITCH_Pin */
-  GPIO_InitStruct.Pin = START_SWITCH_Pin;
+  /*Configure GPIO pin : RED_SWITCH_Pin */
+  GPIO_InitStruct.Pin = RED_SWITCH_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(START_SWITCH_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(RED_SWITCH_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
-static void add_report_to_fifo_queue(uint8_t hid_report[])
+/* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
 {
-  if (hid_report_fifo_queue_index > HID_FIFO_QUEUE_SIZE)
+  /* init code for USB_DEVICE */
+  MX_USB_DEVICE_Init();
+  /* USER CODE BEGIN 5 */
+  bool fast_bootup = false;
+
+  init_usb_hid_handler();
+  init_switch_panel();
+  init_autopilot();
+  init_levers();
+
+  /* Infinite loop */
+  while(1)
   {
-    hid_report_fifo_queue_index = 0;
-  }
+    uint32_t battery_state;
+    uint32_t av_bus2_state;
+    uint32_t switch_state;
 
-  for (int i = 0; i < 8; i += 1)
-  {
-    hid_report_fifo_queue[hid_report_fifo_queue_index][i] = hid_report[i];
-  }
-
-  hid_report_fifo_queue_index += 1;
-}
-
-static void handle_encoder(void)
-{
-  static int32_t heading_queue       = 0;
-  static bool    heading_lock        = false;
-  static int32_t heading_step_locked = 0;
-
-  uint8_t hid_report[8] = { 0 };
-
-  GPIO_PinState rot_1_dt = HAL_GPIO_ReadPin(ROT_1_DT_GPIO_Port, ROT_1_DT_Pin);
-  GPIO_PinState rot_2_dt = HAL_GPIO_ReadPin(ROT_2_DT_GPIO_Port, ROT_2_DT_Pin);
-
-  /* Rotary Encoder 1 - ALTITUDE */
-  if ((GPIO_PIN_SET == prev_rot_1_dt) && (GPIO_PIN_RESET == rot_1_dt))
-  {
-    uint32_t sync_mode_state = (get_switch_state() & (1U << SW_SYNC_MODE));
-
-    if (GPIO_PIN_SET == HAL_GPIO_ReadPin(ROT_1_CLK_GPIO_Port, ROT_1_CLK_Pin))
+    switch (get_state())
     {
-      if (sync_mode_state != 0)
+      case STATE_OFF:
       {
-        hid_report[2] = KEY_MINUS;
-      }
-      else
-      {
-        hid_report[2] = KEY_NONE;
-      }
+        switch_state  = get_switch_state();
+        battery_state = (switch_state & (1U << SW_BATTERY));
+        av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
 
-      altitude -= 100;
-    }
-    else
-    {
-      if (sync_mode_state != 0)
-      {
-        hid_report[2] = KEY_EQUAL;
-      }
-      else
-      {
-        hid_report[2] = KEY_NONE;
-      }
-
-      altitude += 100;
-    }
-
-    add_report_to_fifo_queue(hid_report);
-    set_display(disp_state, altitude);
-  }
-
-  /* Rotary Encoder 2 - HEADING */
-  if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(ROT_2_SW_GPIO_Port, ROT_2_SW_Pin))
-  {
-    heading_lock = true;
-  }
-
-  if ((GPIO_PIN_SET == prev_rot_2_dt) && (GPIO_PIN_RESET == rot_2_dt))
-  {
-    if (GPIO_PIN_SET == HAL_GPIO_ReadPin(ROT_2_CLK_GPIO_Port, ROT_2_CLK_Pin))
-    {
-      heading_queue -= 1;
-
-      if (1 == heading_step_locked)
-      {
-        heading_lock = false;
-      }
-      else
-      {
-        heading_step_locked = -1;
-      }
-    }
-    else
-    {
-      heading_queue += 1;
-
-      if (-1 == heading_step_locked)
-      {
-        heading_lock = false;
-      }
-      else
-      {
-        heading_step_locked = 1;
-      }
-    }
-  }
-  else if (true == heading_lock)
-  {
-    heading_queue = heading_step_locked;
-  }
-
-  if (0 != heading_queue)
-  {
-    if (heading_queue < 0)
-    {
-      hid_report[2] = KEY_LEFTBRACE;
-
-      heading_queue += 1;
-    }
-    else if (heading_queue > 0)
-    {
-      hid_report[2] = KEY_RIGHTBRACE;
-
-      heading_queue -= 1;
-    }
-
-    add_report_to_fifo_queue(hid_report);
-  }
-
-  prev_rot_1_dt = rot_1_dt;
-  prev_rot_2_dt = rot_2_dt;
-}
-
-static void handle_key(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, const fcu_key key)
-{
-  static fcu_key key_lock = 0;
-
-  uint8_t  hid_report[8] = { 0 };
-  uint32_t sync_mode_state;;
-
-  if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(GPIOx, GPIO_Pin))
-  {
-    if (0 == ((key_lock >> key) & 1U))
-    {
-      switch (key)
-      {
-        case FCU_KEY_AP:
-          hid_report[0] = KEY_MOD_LALT;
-          hid_report[2] = KEY_V;
-
-          mode ^= 1UL << MODE_AP;
-
-          if (0 == ((mode >> MODE_AP) & 1U))
-          {
-            disp_state = SEG_OFF;
-          }
-          else if (1 == ((mode >> MODE_NAV) & 1U))
-          {
-            disp_state = SEG_NAV;
-          }
-          else if (1 == ((mode >> MODE_LATERAL) & 1U))
-          {
-            disp_state = SEG_HDG;
-          }
-          else
-          {
-            disp_state = SEG_ROL;
-          }
-          break;
-        case FCU_KEY_HDG:
-          hid_report[0] = KEY_MOD_LALT;
-          hid_report[2] = KEY_B;
-
-          mode ^= 1UL << MODE_LATERAL;
-          mode |= 1UL << MODE_AP; /* Pilatus PC-6 (Milviz) */
-
-          if (0 == ((mode >> MODE_AP) & 1U))
-          {
-            disp_state = SEG_OFF;
-          }
-          else if (1 == ((mode >> MODE_NAV) & 1U))
-          {
-            disp_state = SEG_NAV;
-          }
-          else if (1 == ((mode >> MODE_LATERAL) & 1U))
-          {
-            disp_state = SEG_HDG;
-          }
-          else
-          {
-            disp_state = SEG_ROL;
-          }
-          break;
-        case FCU_KEY_UP:
-          hid_report[0] = KEY_MOD_LALT;
-          hid_report[2] = KEY_N;
-          break;
-        case FCU_KEY_NAV:
-          hid_report[0] = KEY_MOD_RALT;
-          hid_report[2] = KEY_V;
-
-          mode ^= 1UL << MODE_NAV;
-
-          if (0 == ((mode >> MODE_AP) & 1U))
-          {
-            disp_state = SEG_OFF;
-          }
-          else if (1 == ((mode >> MODE_NAV) & 1U))
-          {
-            disp_state = SEG_NAV;
-          }
-          else if (1 == ((mode >> MODE_LATERAL) & 1U))
-          {
-            disp_state = SEG_HDG;
-          }
-          else
-          {
-            disp_state = SEG_ROL;
-          }
-          break;
-        case FCU_KEY_ALT:
-          hid_report[0] = KEY_MOD_RALT;
-          hid_report[2] = KEY_B;
-
-          mode ^= 1UL << MODE_VERTICAL;
-          mode |= 1UL << MODE_AP; /* Pilatus PC-6 (Milviz) */
-
-          if (1 == ((mode >> MODE_AP) & 1U))
-          {
-            if (1 == ((mode >> MODE_VERTICAL) & 1U))
-            {
-              disp_state = SEG_ALT;
-            }
-            else
-            {
-              disp_state = SEG_VS;
-            }
-          }
-          else
-          {
-            disp_state = SEG_OFF;
-          }
-          break;
-        case FCU_KEY_DOWN:
-          hid_report[0] = KEY_MOD_RALT;
-          hid_report[2] = KEY_N;
-          break;
-      }
-
-      sync_mode_state = (get_switch_state() & (1U << SW_SYNC_MODE));
-      if (sync_mode_state != 0)
-      {
-        add_report_to_fifo_queue(hid_report);
-      }
-    }
-
-    key_lock |= 1UL << key;
-  }
-  else
-  {
-    key_lock &= ~(1UL << key);
-  }
-
-  if ((disp_state != prev_disp_state) && (true == is_initialised))
-  {
-    set_display(disp_state, altitude);
-    prev_disp_state = disp_state;
-  }
-}
-
-static void handle_red_switch(void)
-{
-  uint8_t hid_report[8] = { 0 };
-
-  if (start_switch != HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin))
-  {
-    hid_report[0] = KEY_MOD_LALT;
-    hid_report[2] = KEY_M;
-
-    add_report_to_fifo_queue(hid_report);
-
-    start_switch = HAL_GPIO_ReadPin(START_SWITCH_GPIO_Port, START_SWITCH_Pin);
-  }
-}
-
-static void handle_levers(void)
-{
-  uint8_t hid_report[8] = { 0 };
-
-  for (axis_index_t index = 0; index <= AXIS_MIXTURE; index += 1)
-  {
-    static int64_t prev_percentage[3] = { 50, 50, 50 };
-
-    uint8_t channel;
-    int16_t lower_limit;
-    int16_t center;
-    int16_t upper_limit;
-    int64_t percentage[3];
-
-    switch (index)
-    {
-      case AXIS_PROP:
-        channel     = AXIS_THROTTLE;
-        lower_limit = PROP_LOWER_LIMIT;
-        center      = PROP_CENTER;
-        upper_limit = PROP_UPPER_LIMIT;
-        break;
-      case AXIS_THROTTLE:
-        channel     = AXIS_MIXTURE;
-        lower_limit = THROTTLE_LOWER_LIMIT;
-        center      = THROTTLE_CENTER;
-        upper_limit = THROTTLE_UPPER_LIMIT;
-        break;
-      case AXIS_MIXTURE:
-        channel     = AXIS_PROP;
-        lower_limit = MIXTURE_LOWER_LIMIT;
-        center      = MIXTURE_CENTER;
-        upper_limit = MIXTURE_UPPER_LIMIT;
-        break;
-    }
-
-    ads1115_read((int16_t*)&axis_data[index], lower_limit, upper_limit);
-    ads1115_set_channel(channel);
-
-    if (axis_data[index] <= center)
-    {
-      percentage[index] = (50ULL * axis_data[index] + (center - lower_limit) / 2) / (center - lower_limit);
-
-      if (percentage[index] > 50)
-      {
-        percentage[index] = 50;
-      }
-    }
-    else
-    {
-      percentage[index] = (100ULL * axis_data[index] + (upper_limit - lower_limit) / 2) / (upper_limit - lower_limit);
-
-      if (percentage[index] < 51)
-      {
-        percentage[index] = 51;
-      }
-    }
-
-    if (percentage[index] > 100)
-    {
-      percentage[index] = 100;
-    }
-    else if (percentage[index] < 0)
-    {
-      percentage[index] = 0;
-    }
-
-    if (((abs(prev_percentage[index] - percentage[index]) >= AXIS_THROTTLE) && (index == AXIS_THROTTLE)) ||
-        ((percentage[index] == 0) && (index == AXIS_THROTTLE)))
-    {
-      /* Nothing to do here. */
-    }
-    else
-    {
-      prev_percentage[index] = percentage[index];
-      continue;
-    }
-
-    switch (index)
-    {
-      case AXIS_PROP:
-        break;
-      case AXIS_THROTTLE:
-        hid_report[0] = KEY_MOD_LCTRL;
-
-        switch (percentage[index])
+        if (0 == (switch_state & (1U << SW_SYNC_MODE)))
         {
-          case 38:
-          case 39:
-          case 40:
-            hid_report[2] = KEY_SYSRQ;
-            break;
-          case 45:
-            hid_report[2] = KEY_F1;
-            break;
-          case 50:
-            hid_report[2] = KEY_F2;
-            break;
-          case 55:
-            hid_report[2] = KEY_F3;
-            break;
-          case 60:
-            hid_report[2] = KEY_F4;
-            break;
-          case 65:
-            hid_report[2] = KEY_F5;
-            break;
-          case 70:
-            hid_report[2] = KEY_F6;
-            break;
-          case 75:
-            hid_report[2] = KEY_F7;
-            break;
-          case 80:
-            hid_report[2] = KEY_F8;
-            break;
-          case 90:
-            hid_report[2] = KEY_F9;
-          case 100:
-            hid_report[2] = KEY_F10;
-            break;
-          default:
-            if (prev_percentage[index] < percentage[index])
-            {
-              hid_report[2] = KEY_F12;
-            }
-            else if ((prev_percentage[index] > percentage[index]))
-            {
-              hid_report[2] = KEY_F11;
-            }
-            else
-            {
-              prev_percentage[index] = percentage[index];
-              continue;
-            }
-            break;
+          fast_bootup = true;
+        }
+
+        if (0 == battery_state && 0 == av_bus2_state)
+        {
+          set_state(STATE_AVIONICS_BUS2_BOOTUP);
         }
         break;
-
-      case AXIS_MIXTURE:
-        hid_report[2] = KEY_M;
-
-        if (percentage[index] == 0) /* CUT OFF. */
+      }
+      case STATE_AVIONICS_BUS2_BOOTUP:
+      {
+        for (int c = 1; c <= 4; c+= 1)
         {
-          hid_report[3] = KEY_0;
+          set_display(SEG_PFT, c);
+
+          switch_state  = get_switch_state();
+          battery_state = (switch_state & (1U << SW_BATTERY));
+          av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
+
+          if (battery_state > 0 || av_bus2_state > 0)
+          {
+            set_state(STATE_OFF);
+            clear_display();
+            break;
+          }
+
+          if (false == fast_bootup)
+          {
+            osDelay(1800);
+          }
+          else
+          {
+            osDelay(0);
+          }
         }
-        else if (prev_percentage[index] == 0) /* Transition from CUT OFF. */
+
+        switch_state  = get_switch_state();
+        battery_state = (switch_state & (1U << SW_BATTERY));
+        av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
+
+        if (battery_state > 0 || av_bus2_state > 0)
         {
-          if (percentage[index] >= 70) /* HIGH IDLE. */
-          {
-            hid_report[3] = KEY_1;
-          }
-          else if (percentage[index] > 0) /* LOW IDLE. */
-          {
-            hid_report[3] = KEY_RIGHTBRACE;
-          }
+          set_state(STATE_OFF);
+          clear_display();
+          break;
+        }
+
+        if (false == fast_bootup)
+        {
+          osDelay(2000);
         }
         else
         {
-          if ((percentage[index] >= 70)) /* HIGH IDLE. */
-          {
-            hid_report[3] = KEY_1;
-          }
-          else if ((percentage[index] <= 30) && (percentage[index] != 0))
-          {
-            hid_report[3] = KEY_LEFTBRACE; /* LOW IDLE. */
-          }
-          else
-          {
-            prev_percentage[index] = percentage[index];
-            continue;
-          }
+          osDelay(0);
+        }
+
+        fill_display();
+
+        switch_state  = get_switch_state();
+        battery_state = (switch_state & (1U << SW_BATTERY));
+        av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
+
+        if (battery_state > 0 || av_bus2_state > 0)
+        {
+          set_state(STATE_OFF);
+          clear_display();
+          break;
+        }
+
+        if (false == fast_bootup)
+        {
+          osDelay(4000);
+        }
+        else
+        {
+          osDelay(0);
+        }
+
+        disable_autopilot();
+        set_state(STATE_READY);
+
+        clear_display();
+        set_display(SEG_OFF, 0);
+
+        break;
+      }
+      case STATE_READY:
+      {
+        switch_state  = get_switch_state();
+        battery_state = (switch_state & (1U << SW_BATTERY));
+        av_bus2_state = (switch_state & (1U << SW_AVIONIC_BUS2));
+
+        if (battery_state > 0 || av_bus2_state > 0)
+        {
+          set_state(STATE_OFF);
+          clear_display();
         }
         break;
-    }
-
-    add_report_to_fifo_queue(hid_report);
-
-    prev_percentage[index] = percentage[index];
-  }
-}
-
-static void send_report(uint8_t hid_report[])
-{
-  extern USBD_HandleTypeDef hUsbDeviceFS;
-
-  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-  HAL_Delay(40);
-
-  /* Release keys. */
-  for (int i = 0; i < 8; i += 1)
-  {
-    hid_report[i] = KEY_NONE;
-  }
-  USBD_HID_SendReport(&hUsbDeviceFS, hid_report, 8);
-
-  HAL_Delay(10);
-}
-
-static void send_fifo_queue_item(void)
-{
-  extern USBD_HandleTypeDef hUsbDeviceFS;
-
-  uint8_t hid_report[8];
-  int     first_valid_item;
-  bool    valid_item_found = false;
-
-  for (first_valid_item = 0; first_valid_item < HID_FIFO_QUEUE_SIZE; first_valid_item += 1)
-  {
-    for (int i = 0; i < 8; i += 1)
-    {
-      hid_report[i] = hid_report_fifo_queue[first_valid_item][i];
-      if (hid_report[i] != 0x00)
-      {
-        valid_item_found = true;
       }
     }
 
-    if (true == valid_item_found)
-    {
-      break;
-    }
+    osDelay(1);
   }
-
-  if (true == valid_item_found)
-  {
-    send_report(hid_report);
-
-    /* Clear last valid item. */
-    for (int i = 0; i < 8; i += 1)
-    {
-      hid_report_fifo_queue[first_valid_item][i] = 0x00;
-    }
-  }
+  /* USER CODE END 5 */
 }
-/* USER CODE END 4 */
 
 /**
   * @brief  Period elapsed callback in non blocking mode
