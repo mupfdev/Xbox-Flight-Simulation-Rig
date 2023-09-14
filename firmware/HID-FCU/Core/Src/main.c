@@ -387,7 +387,7 @@ void StartDefaultTask(void *argument)
 
           if (false == fast_bootup)
           {
-            osDelay(1800);
+            osDelay(2000);
           }
           else
           {
