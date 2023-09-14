@@ -357,6 +357,10 @@ void StartDefaultTask(void *argument)
         {
           fast_bootup = true;
         }
+        else
+        {
+          fast_bootup = false;
+        }
 
         if (0 == battery_state && 0 == av_bus2_state)
         {
