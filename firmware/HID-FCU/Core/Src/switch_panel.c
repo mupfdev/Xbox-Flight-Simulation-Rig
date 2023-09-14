@@ -168,7 +168,8 @@ static int poll_switch_panel(void)
 
 static void send_switch_event(switch_event event)
 {
-  uint8_t hid_report[8] = { 0 };
+  uint32_t sync_mode_state;
+  uint8_t  hid_report[8] = { 0 };
 
   switch (event)
   {
@@ -433,7 +434,12 @@ static void send_switch_event(switch_event event)
       return;
   }
 
-  add_report_to_fifo_queue(hid_report);
+  sync_mode_state = (get_switch_state() & (1U << SW_SYNC_MODE));
+
+  if (sync_mode_state != 0)
+  {
+    add_report_to_fifo_queue(hid_report);
+  }
 }
 
 static void switch_panel_task(void *argument)
