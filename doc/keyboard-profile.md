@@ -38,26 +38,4 @@
 | Autopilot          | INCREASE AUTOPILOT REFERENCE VS | `LEFT ALT` + `N`        |                   |
 | Autopilot          | DECREASE AUTOPILOT REFERENCE VS | `RIGHT ALT` + `N`       |                   |
 | Autopilot          | AUTOPILOT NAV1 HOLD             | `RIGHT ALT` + `V`       |                   |
-| Throttle           | THROTTLE CUT                    | `LEFT CTRL` + `SYS_REQ` |                   |
-| Throttle           | THROTTLE 90%                    | `LEFT CTRL` + `F9`      |                   |
-| Throttle           | THROTTLE 80%                    | `LEFT CTRL` + `F8`      |                   |
-| Throttle           | THROTTLE 70%                    | `LEFT CTRL` + `F7`      |                   |
-| Throttle           | THROTTLE 60%                    | `LEFT CTRL` + `F6`      |                   |
-| Throttle           | THROTTLE 50%                    | `LEFT CTRL` + `F5`      |                   |
-| Throttle           | THROTTLE 40%                    | `LEFT CTRL` + `F4`      |                   |
-| Throttle           | THROTTLE 30%                    | `LEFT CTRL` + `F3`      |                   |
-| Throttle           | THROTTLE 20%                    | `LEFT CTRL` + `F2`      |                   |
-| Throttle           | THROTTLE 10%                    | `LEFT CTRL` + `F1`      |                   |
-| Throttle           | INCREASE THROTTLE               | `LEFT CTRL` + `F12`     |                   |
-| Throttle           | FULL THROTTLE 1                 | `LEFT CTRL` + `F10`     |                   |
-| Throttle           | DECREASE THROTTLE               | `LEFT CTRL` + `F11`     |                   |
-| Mixture            | SET MIXTURE RICH                |                         |                   |
-| Mixture            | SET MIXTURE LEAN                |                         |                   |
-| Mixture            | INCREASE MIXTURE                |                         |                   |
-| Mixture            | DECREASE MIXTURE                |                         |                   |
-| Propeller          | TOGGLE PROPELLER REVERSE THRUST |                         |                   |
-| Propeller          | PROPELLER PITCH LO              |                         |                   |
-| Propeller          | PROPELLER PITCH HI              |                         |                   |
-| Propeller          | INCREASE PROPELLER PITCH        |                         |                   |
-| Propeller          | DECREASE PROPELLER PITCH        |                         |                   |
 | Landing Gear       | TOGGLE TAIL WHEEL LOCK          | `RIGHT ALT` + `5`       | `RIGHT ALT` + `6` |

@@ -198,7 +198,9 @@ static void handle_levers(void)
         break;
 
       case AXIS_MIXTURE:
-        /* Tbd. */
+        hid_report[0] = KEY_MOD_RCTRL;
+
+
 
         break;
     }

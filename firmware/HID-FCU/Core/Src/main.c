@@ -29,7 +29,7 @@
 
 #include "autopilot.h"
 #include "display.h"
-#include "levers.h"
+//#include "levers.h"
 #include "state_handler.h"
 #include "switch_panel.h"
 #include "usb_hid_handler.h"
@@ -336,7 +336,7 @@ void StartDefaultTask(void *argument)
   init_usb_hid_handler();
   init_switch_panel();
   init_autopilot();
-  init_levers();
+  //init_levers();
 
   /* Infinite loop */
   while(1)
