@@ -35,13 +35,6 @@ static void usb_hid_handler_task(void *argument);
 
 void add_report_to_fifo_queue(uint8_t hid_report[])
 {
-#if 0
-  while (pdFALSE == xSemaphoreTake(queue_mutex, 10 / portTICK_PERIOD_MS))
-  {
-    osDelay(1);
-  }
-#endif
-
   if (fifo_queue_index > FIFO_QUEUE_SIZE)
   {
     fifo_queue_index = 0;
@@ -53,9 +46,6 @@ void add_report_to_fifo_queue(uint8_t hid_report[])
   }
 
   fifo_queue_index += 1;
-#if 0
-  xSemaphoreGive(queue_mutex);
-#endif
 }
 
 void init_usb_hid_handler(void)
