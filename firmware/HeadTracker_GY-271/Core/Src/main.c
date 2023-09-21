@@ -277,11 +277,16 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   while (1)
   {
+    int16_t x = 0;
+    int16_t y = 0;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    report.axes[0] = 0;
-    report.axes[1] = 0;
+    get_data_from_qmc5883l(&x, &y, NULL);
+
+    report.axes[0] = x;
+    report.axes[1] = y;
+
     USB_SendReport(&report);
     osDelay(10);
   }

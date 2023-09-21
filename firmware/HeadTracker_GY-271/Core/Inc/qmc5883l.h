@@ -11,6 +11,8 @@
 #include <stdint.h>
 #include "stm32f1xx_hal.h"
 
-int init_qmc5883l(I2C_HandleTypeDef* i2c_handle);
+void calibrate_qmc58831(void);
+void get_data_from_qmc5883l(int16_t* x, int16_t* y, int16_t* z);
+int  init_qmc5883l(I2C_HandleTypeDef* i2c_handle);
 
 #endif /* QMC5883L_H */
