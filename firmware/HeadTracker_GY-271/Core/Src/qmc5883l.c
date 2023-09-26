@@ -55,7 +55,7 @@ static const osThreadAttr_t qmc5883l_task_attributes = {
 static void qmc5883l_task(void *i2c_handle);
 static void update_qmc5883l(I2C_HandleTypeDef* i2c_handle);
 
-void calibrate_qmc58831(void)
+void calibrate_qmc5883l(void)
 {
   for (int i = X_AXIS; i <= Z_AXIS; i += 1)
   {
@@ -137,6 +137,9 @@ int init_qmc5883l(I2C_HandleTypeDef* i2c_handle, uint8_t control_1, uint8_t cont
 
 static void qmc5883l_task(void *i2c_handle)
 {
+  update_qmc5883l((I2C_HandleTypeDef*)i2c_handle);
+  calibrate_qmc5883l();
+
   while (1)
   {
     update_qmc5883l((I2C_HandleTypeDef*)i2c_handle);

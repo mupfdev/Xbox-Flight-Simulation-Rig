@@ -31,7 +31,7 @@
 #define CONTROL_2_SOFT_RST_NORMAL 0x00
 #define CONTROL_2_SOFT_RST_RESET  0x80
 
-void calibrate_qmc58831(void);
+void calibrate_qmc5883l(void);
 void get_data_from_qmc5883l(int16_t* x, int16_t* y, int16_t* z);
 void get_raw_data_from_qmc5883l(int16_t* x, int16_t* y, int16_t* z);
 int  init_qmc5883l(I2C_HandleTypeDef* i2c_handle, uint8_t control_1, uint8_t control_2);
