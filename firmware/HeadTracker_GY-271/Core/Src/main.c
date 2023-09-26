@@ -49,7 +49,6 @@ const osThreadAttr_t defaultTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-
 /* USER CODE BEGIN PV */
 static JoyReport report;
 /* USER CODE END PV */
@@ -124,7 +123,6 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
-  while (1 == init_qmc5883l(&hi2c1));
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -137,7 +135,12 @@ int main(void)
   /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1);
+  while (1)
+  {
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+  }
   /* USER CODE END 3 */
 }
 
@@ -233,12 +236,36 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, SENSOR_GND_Pin|SENSOR_VCC_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PC13 PC14 PC15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA0 PA1 PA2 PA3
+                           PA4 PA5 PA6 PA7
+                           PA8 PA9 PA10 PA15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
+                          |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7
+                          |GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB0 PB1 PB2 PB10
+                           PB11 PB12 PB13 PB14
+                           PB15 PB3 PB4 PB9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_10
+                          |GPIO_PIN_11|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14
+                          |GPIO_PIN_15|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SENSOR_GND_Pin */
   GPIO_InitStruct.Pin = SENSOR_GND_Pin;
@@ -274,6 +301,15 @@ void StartDefaultTask(void *argument)
   /* init code for USB_DEVICE */
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 5 */
+
+  while (1 == init_qmc5883l(
+      &hi2c1,
+      CONTROL_1_MODE_CONTINUOUS | CONTROL_1_ODR_50HZ | CONTROL_1_RNG_8G | CONTROL_1_OSR_128,
+      CONTROL_2_INT_ENB_DISABLE | CONTROL_2_ROL_PNT_NORMAL | CONTROL_2_SOFT_RST_NORMAL))
+  {
+    osDelay(1);
+  }
+
   /* Infinite loop */
   while (1)
   {
@@ -282,10 +318,10 @@ void StartDefaultTask(void *argument)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    get_data_from_qmc5883l(&x, &y, NULL);
+    get_data_from_qmc5883l(&x, NULL, &y);
 
-    report.axes[0] = x;
-    report.axes[1] = y;
+    report.axis[0] = x;
+    report.axis[1] = y;
 
     USB_SendReport(&report);
     osDelay(10);

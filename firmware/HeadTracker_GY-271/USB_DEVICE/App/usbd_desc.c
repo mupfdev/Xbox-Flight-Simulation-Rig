@@ -91,13 +91,13 @@
   * @{
   */
 
-#define USBD_VID     1155
-#define USBD_LANGID_STRING     1033
-#define USBD_MANUFACTURER_STRING     "STMicroelectronics"
-#define USBD_PID_FS     22288
-#define USBD_PRODUCT_STRING_FS     "Universal RC Joystick"
-#define USBD_SERIALNUMBER_STRING_FS     "0000000000DA"
-#define USBD_CONFIGURATION_STRING_FS     "HID Config"
+#define USBD_VID                     0x0483
+#define USBD_LANGID_STRING           1033
+#define USBD_MANUFACTURER_STRING     "mupf.dev"
+#define USBD_PID_FS                  0x5757
+#define USBD_PRODUCT_STRING_FS       "Xbox Head Tracker"
+#define USBD_SERIALNUMBER_STRING_FS  "0000000000DA"
+#define USBD_CONFIGURATION_STRING_FS "HID Config"
 #define USBD_INTERFACE_STRING_FS     "HID Interface"
 
 /* USER CODE BEGIN PRIVATE_DEFINES */

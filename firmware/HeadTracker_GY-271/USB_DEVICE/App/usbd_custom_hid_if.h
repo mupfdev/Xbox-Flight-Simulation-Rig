@@ -79,7 +79,7 @@
 
 /* USER CODE BEGIN EXPORTED_DEFINES */
 
-#define NUM_AXES 2
+#define NUM_AXIS 2
 #define NUM_BUTTONS 0
 
 /* USER CODE END EXPORTED_DEFINES */
@@ -96,7 +96,7 @@
 /* USER CODE BEGIN EXPORTED_TYPES */
 
  typedef struct {
-   int16_t axes[NUM_AXES];
+   int16_t axis[NUM_AXIS];
    uint8_t buttons;
  } __attribute__((packed)) JoyReport;
 
