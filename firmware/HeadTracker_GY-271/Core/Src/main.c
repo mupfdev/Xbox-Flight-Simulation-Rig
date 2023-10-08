@@ -304,7 +304,7 @@ void StartDefaultTask(void *argument)
 
   while (1 == init_qmc5883l(
       &hi2c1,
-      CONTROL_1_MODE_CONTINUOUS | CONTROL_1_ODR_50HZ | CONTROL_1_RNG_8G | CONTROL_1_OSR_128,
+      CONTROL_1_MODE_CONTINUOUS | CONTROL_1_ODR_200HZ | CONTROL_1_RNG_8G | CONTROL_1_OSR_512,
       CONTROL_2_INT_ENB_DISABLE | CONTROL_2_ROL_PNT_NORMAL | CONTROL_2_SOFT_RST_NORMAL))
   {
     osDelay(1);
@@ -318,7 +318,7 @@ void StartDefaultTask(void *argument)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    get_data_from_qmc5883l(&x, NULL, &y);
+    get_data_from_qmc5883l(&x, &y, NULL);
 
     report.axis[0] = x;
     report.axis[1] = y;
